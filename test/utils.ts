@@ -1,6 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { ThrottlerStorage } from '@nestjs/throttler';
+import { ThrottlerStorage, ThrottlerStorageService } from '@nestjs/throttler';
 import { Logger } from 'nestjs-pino';
 import * as bcrypt from 'bcrypt';
 import request from 'supertest';
@@ -10,10 +10,26 @@ import { PrismaService } from 'src/prisma/prisma.service';
 
 export const PASSWORD = 'Str0ng!Passw0rd';
 
+/** In-memory throttler storage that tests can reset between cases. */
+class ResettableThrottlerStorage implements ThrottlerStorage {
+  private inner = new ThrottlerStorageService();
+
+  increment(...args: Parameters<ThrottlerStorage['increment']>) {
+    return this.inner.increment(...args);
+  }
+
+  reset(): void {
+    this.inner = new ThrottlerStorageService();
+  }
+}
+
 export async function createApp(): Promise<INestApplication> {
   const moduleRef = await Test.createTestingModule({
     imports: [AppModule],
-  }).compile();
+  })
+    .overrideProvider(ThrottlerStorage)
+    .useValue(new ResettableThrottlerStorage())
+    .compile();
   const app = moduleRef.createNestApplication({ bufferLogs: true });
   app.useLogger(app.get(Logger));
   configureApp(app);
@@ -23,8 +39,7 @@ export async function createApp(): Promise<INestApplication> {
 
 /** Clears in-memory rate-limit counters so tests don't throttle each other. */
 export function resetThrottle(app: INestApplication): void {
-  const storage: { storage: Map<string, unknown> } = app.get(ThrottlerStorage);
-  storage.storage.clear();
+  app.get<ResettableThrottlerStorage>(ThrottlerStorage).reset();
 }
 
 export async function resetDb(app: INestApplication): Promise<void> {

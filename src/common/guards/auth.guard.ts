@@ -7,6 +7,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
+import { isPublic as IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { ACCESS_TOKEN_COOKIE } from '../constants/cookie.config';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -17,7 +19,7 @@ export class AuthGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const isPublic = this.reflector.getAllAndOverride<boolean>('isPublic', [
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
@@ -27,10 +29,10 @@ export class AuthGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<{
-      cookies: Record<string, string>;
+      cookies?: Record<string, string>;
       user?: unknown;
     }>();
-    const token = request.cookies['accessToken'];
+    const token = request.cookies?.[ACCESS_TOKEN_COOKIE];
 
     if (!token || typeof token !== 'string') {
       throw new UnauthorizedException('Access Token missing or malformed');

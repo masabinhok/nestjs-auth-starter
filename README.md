@@ -69,11 +69,11 @@ Interactive scaffolding tool that sets up this entire boilerplate in a few steps
 
 ## Core Features
 
-- **Token rotation**: Refresh tokens auto-rotate on each use—stolen tokens die immediately
+- **Token rotation**: Opaque refresh tokens rotate on every use; replaying an old token revokes the whole session
 - **Zero XSS risk**: HttpOnly cookies only—no localStorage, no client-side token access
 - **RBAC in 2 lines**: Add `@Roles(UserRole.ADMIN)` to any endpoint—done
 - **Multi-device sessions**: Track 5 devices per user with automatic cleanup
-- **Brute-force protection**: Rate limiting: 5 auth attempts/minute, 10 requests/minute globally
+- **Brute-force protection**: Rate limiting: 5 login attempts/minute per client, 100 requests/minute globally
 - **PII-safe logs**: Pino structured logging—passwords/tokens auto-redacted
 - **Bcrypt 12 rounds**: Industry-standard password hashing (2025 security baseline)
 
@@ -91,7 +91,7 @@ Interactive scaffolding tool that sets up this entire boilerplate in a few steps
 
 ```bash
 git clone https://github.com/masabinhok/nestjs-jwt-rbac-boilerplate.git
-cd nestjs-jwt-rbac-boilerplate/api
+cd nestjs-jwt-rbac-boilerplate
 npm install
 ```
 
@@ -112,7 +112,7 @@ openssl rand -base64 32
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/nest_auth_db"
 JWT_ACCESS_SECRET="generated-secret-min-32-chars"
 JWT_REFRESH_SECRET="another-generated-secret-min-32-chars"
-JWT_ACCESS_EXPIRY="60m"
+JWT_ACCESS_EXPIRY="15m"
 JWT_REFRESH_EXPIRY="30d"
 NODE_ENV="development"
 PORT="8080"
@@ -209,7 +209,7 @@ curl -X POST http://localhost:8080/api/v1/auth/signup \
 }
 ```
 
-Sets cookies: `accessToken` (httpOnly, 1h), `refreshToken` (httpOnly, 30d)
+Sets cookies: `accessToken` (httpOnly, `JWT_ACCESS_EXPIRY`), `refreshToken` (httpOnly, `JWT_REFRESH_EXPIRY`, path `/api/v1/auth`)
 
 **curl:**
 ```bash
@@ -576,11 +576,12 @@ PII auto-redacted: passwords, tokens, cookies. Change via `LOG_LEVEL` env.
 | `DATABASE_URL` | Yes | - | PostgreSQL connection string |
 | `JWT_ACCESS_SECRET` | Yes | - | Access token secret (32+ chars) |
 | `JWT_REFRESH_SECRET` | Yes | - | Refresh token secret (32+ chars) |
-| `JWT_ACCESS_EXPIRY` | No | `60m` | Access token lifetime (format: `60m`, `1h`, `7d`) |
+| `JWT_ACCESS_EXPIRY` | No | `15m` | Access token lifetime (format: `15m`, `1h`, `7d`) |
 | `JWT_REFRESH_EXPIRY` | No | `30d` | Refresh token lifetime |
 | `NODE_ENV` | No | `development` | `development`, `production`, or `test` |
 | `PORT` | No | `8080` | Server port |
-| `CORS_ORIGIN` | No | `http://localhost:3000` | Allowed origins (comma-separated) |
+| `CORS_ORIGIN` | No | `http://localhost:3000` | Allowed origins (comma-separated, `*` not allowed) |
+| `TRUST_PROXY` | No | unset | Express `trust proxy` value when behind a load balancer (e.g. `1`) |
 | `LOG_LEVEL` | No | `info` | `fatal`, `error`, `warn`, `info`, `debug`, `trace` |
 
 ## Troubleshooting: Real Fixes

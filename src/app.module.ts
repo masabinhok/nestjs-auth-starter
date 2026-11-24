@@ -1,4 +1,5 @@
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { AuthModule } from './modules/auth/auth.module';
 import { LoggerModule } from 'nestjs-pino';
 import { PrismaModule } from './prisma/prisma.module';
@@ -14,16 +15,13 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 @Module({
   imports: [
     LoggerModule.forRoot(loggerConfig),
+    // Every named throttler applies to every route, so there is one global
+    // limit here; auth routes tighten it with @Throttle().
     ThrottlerModule.forRoot([
       {
         name: 'default',
-        ttl: 60000, // 1 minute
-        limit: 10, // 10 requests per minute
-      },
-      {
-        name: 'strict',
-        ttl: 60000, // 1 minute
-        limit: 5, // 5 requests per minute for auth endpoints
+        ttl: 60_000, // 1 minute
+        limit: 100,
       },
     ]),
     AppConfigModule,
@@ -35,15 +33,15 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
   controllers: [],
   providers: [
     {
-      provide: 'APP_GUARD',
+      provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
     {
-      provide: 'APP_GUARD',
+      provide: APP_GUARD,
       useClass: AuthGuard,
     },
     {
-      provide: 'APP_GUARD',
+      provide: APP_GUARD,
       useClass: RolesGuard,
     },
   ],

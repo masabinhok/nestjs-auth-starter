@@ -1,4 +1,5 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { ConfigService } from '@nestjs/config';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
@@ -14,12 +15,26 @@ export function configureApp(app: INestApplication): void {
   app.setGlobalPrefix('api/v1');
 
   const configService = app.get(ConfigService);
-  const corsOrigins = configService.get<string>('CORS_ORIGIN')?.split(',');
+
+  // Needed behind a load balancer so req.ip (rate limiting, session info)
+  // is the client's address and not the proxy's.
+  const trustProxy = configService.get<string>('TRUST_PROXY');
+  if (trustProxy) {
+    (app as NestExpressApplication).set(
+      'trust proxy',
+      /^\d+$/.test(trustProxy) ? Number(trustProxy) : trustProxy,
+    );
+  }
+
+  const corsOrigins = (configService.get<string>('CORS_ORIGIN') ?? '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
 
   app.enableCors({
-    origins: corsOrigins,
+    origin: corsOrigins,
     credentials: true,
-  } as Parameters<INestApplication['enableCors']>[0]);
+  });
 
   app.use(cookieParser());
 

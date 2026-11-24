@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { z } from 'zod';
 import { envSchema } from './env.validation';
 
 @Module({
@@ -12,7 +13,7 @@ import { envSchema } from './env.validation';
 
         if (!parsed.success) {
           console.error('Invalid environment variables:');
-          console.error(JSON.stringify(parsed.error.format(), null, 2));
+          console.error(z.prettifyError(parsed.error));
           throw new Error('Environment validation failed');
         }
 

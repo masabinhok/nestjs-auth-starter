@@ -9,6 +9,26 @@ import {
 import { Request, Response } from 'express';
 import { ApiResponse } from '../interfaces/api-response.interface';
 import { Logger } from 'nestjs-pino';
+import { Prisma } from 'generated/prisma/client';
+
+interface NormalizedError {
+  status: number;
+  message: string;
+  code: string;
+  details?: unknown;
+}
+
+const STATUS_CODES: Record<number, string> = {
+  400: 'BAD_REQUEST',
+  401: 'UNAUTHORIZED',
+  403: 'FORBIDDEN',
+  404: 'NOT_FOUND',
+  409: 'CONFLICT',
+  422: 'UNPROCESSABLE_ENTITY',
+  429: 'TOO_MANY_REQUESTS',
+  500: 'INTERNAL_SERVER_ERROR',
+  503: 'SERVICE_UNAVAILABLE',
+};
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -18,91 +38,86 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const request = ctx.getRequest<Request>();
     const response = ctx.getResponse<Response>();
-    const correlationId = request['correlationId'] as string;
+    const correlationId = request['correlationId'] as string | undefined;
 
-    let status = HttpStatus.INTERNAL_SERVER_ERROR;
-    let message = 'Internal server error';
-    let code = 'INTERNAL_SERVER_ERROR';
-    let details: unknown = undefined;
+    const error = this.normalize(exception);
 
-    if (exception instanceof HttpException) {
-      status = exception.getStatus();
-      const exceptionResponse = exception.getResponse();
-
-      if (typeof exceptionResponse === 'string') {
-        message = exceptionResponse;
-      } else if (
-        typeof exceptionResponse === 'object' &&
-        exceptionResponse !== null
-      ) {
-        const responseObj = exceptionResponse as Record<string, unknown>;
-        message =
-          (typeof responseObj.message === 'string'
-            ? responseObj.message
-            : undefined) || message;
-        details = responseObj.error || responseObj.details;
-      }
-
-      // Generate error code from status
-      code = this.getErrorCode(status, message);
-    } else if (exception instanceof Error) {
-      message = exception.message;
-      code = 'INTERNAL_SERVER_ERROR';
+    const log = {
+      correlationId,
+      statusCode: error.status,
+      errorCode: error.code,
+      path: request.url,
+      method: request.method,
+      err: exception instanceof Error ? exception : undefined,
+    };
+    if (error.status >= 500) {
+      this.logger.error(log, `Unhandled error: ${String(exception)}`);
+    } else {
+      this.logger.warn(log, error.message);
     }
 
-    // Log the error with correlation ID
-    this.logger.error(
-      {
-        correlationId,
-        statusCode: status,
-        errorCode: code,
-        message,
-        details,
-        path: request.url,
-        method: request.method,
-        stack: exception instanceof Error ? exception.stack : undefined,
-      },
-      `Error occurred: ${message}`,
-    );
-
-    const errorResponse: ApiResponse = {
+    const body: ApiResponse = {
       success: false,
       error: {
-        message,
-        code,
-        ...(details !== undefined && { details }),
+        message: error.message,
+        code: error.code,
+        ...(error.details !== undefined && { details: error.details }),
       },
-      meta: {
-        correlationId,
-      },
+      meta: { correlationId },
     };
 
-    response.status(status).json(errorResponse);
+    response.status(error.status).json(body);
   }
 
-  private getErrorCode(status: number, message: string): string {
-    // Convert message to error code format
-    const messageCode = message
-      .toUpperCase()
-      .replace(/[^A-Z0-9]+/g, '_')
-      .replace(/^_|_$/g, '');
+  private normalize(exception: unknown): NormalizedError {
+    if (exception instanceof HttpException) {
+      const status = exception.getStatus();
+      const res = exception.getResponse();
+      const code = STATUS_CODES[status] ?? `HTTP_${status}`;
 
-    // Map common HTTP status codes
-    const statusCodeMap: { [key: number]: string } = {
-      400: 'BAD_REQUEST',
-      401: 'UNAUTHORIZED',
-      403: 'FORBIDDEN',
-      404: 'NOT_FOUND',
-      409: 'CONFLICT',
-      422: 'UNPROCESSABLE_ENTITY',
-      500: 'INTERNAL_SERVER_ERROR',
-    };
+      if (typeof res === 'string') {
+        return { status, message: res, code };
+      }
 
-    // If we have a specific message code, use it, otherwise use status code
-    if (messageCode && messageCode !== statusCodeMap[status]) {
-      return messageCode;
+      const { message } = res as { message?: unknown };
+      // ValidationPipe puts the list of field errors in `message`.
+      if (Array.isArray(message)) {
+        return {
+          status,
+          message: 'Validation failed',
+          code: 'VALIDATION_FAILED',
+          details: message,
+        };
+      }
+      return {
+        status,
+        message: typeof message === 'string' ? message : exception.message,
+        code,
+      };
     }
 
-    return statusCodeMap[status] || 'INTERNAL_SERVER_ERROR';
+    if (exception instanceof Prisma.PrismaClientKnownRequestError) {
+      if (exception.code === 'P2025') {
+        return {
+          status: 404,
+          message: 'Resource not found',
+          code: 'NOT_FOUND',
+        };
+      }
+      if (exception.code === 'P2002') {
+        return {
+          status: 409,
+          message: 'Resource already exists',
+          code: 'CONFLICT',
+        };
+      }
+    }
+
+    // Never send internal error details to clients; they are logged above.
+    return {
+      status: HttpStatus.INTERNAL_SERVER_ERROR,
+      message: 'Internal server error',
+      code: 'INTERNAL_SERVER_ERROR',
+    };
   }
 }

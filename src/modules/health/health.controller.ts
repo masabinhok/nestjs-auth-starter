@@ -1,4 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import {
   HealthCheckService,
   HealthCheck,
@@ -7,6 +8,8 @@ import {
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Public } from 'src/common/decorators/public.decorator';
 
+// Probes run every few seconds and must never be rate limited.
+@SkipThrottle()
 @Controller('health')
 export class HealthController {
   constructor(
@@ -48,7 +51,6 @@ export class HealthController {
       status: 'ok',
       uptime: process.uptime(),
       timestamp: new Date().toISOString(),
-      pid: process.pid,
     };
   }
 }

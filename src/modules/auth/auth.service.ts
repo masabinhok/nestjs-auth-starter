@@ -1,11 +1,10 @@
 import {
   Injectable,
   ConflictException,
-  ForbiddenException,
   UnauthorizedException,
   NotFoundException,
 } from '@nestjs/common';
-
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
@@ -14,15 +13,45 @@ import { User } from 'generated/prisma/client';
 import { Logger } from 'nestjs-pino';
 import { SignupDto } from './dtos/signup.dto';
 import { LoginDto } from './dtos/login.dto';
+import { parseDuration } from 'src/common/utils/duration';
+
+const BCRYPT_ROUNDS = 12;
+const MAX_SESSIONS_PER_USER = 5;
+
+export interface ClientInfo {
+  deviceInfo?: string;
+  ipAddress?: string;
+}
+
+export interface IssuedTokens {
+  accessToken: string;
+  refreshToken: string;
+}
 
 @Injectable()
 export class AuthService {
+  /** Compared against on unknown emails so response time doesn't reveal them. */
+  private readonly dummyHash = bcrypt.hashSync(
+    'dummy-password-to-prevent-timing-attack',
+    BCRYPT_ROUNDS,
+  );
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
     private config: ConfigService,
     private logger: Logger,
   ) {}
+
+  get accessTokenTtlMs(): number {
+    return parseDuration(this.config.get<string>('JWT_ACCESS_EXPIRY') ?? '15m');
+  }
+
+  get refreshTokenTtlMs(): number {
+    return parseDuration(
+      this.config.get<string>('JWT_REFRESH_EXPIRY') ?? '30d',
+    );
+  }
 
   async signup(signupDto: SignupDto) {
     const { email, password, fullName } = signupDto;
@@ -35,12 +64,10 @@ export class AuthService {
       throw new ConflictException('Email already in use');
     }
 
-    const hashedPassword = await this.hashData(password);
-
     const newUser = await this.prisma.user.create({
       data: {
         email,
-        passwordHash: hashedPassword,
+        passwordHash: await bcrypt.hash(password, BCRYPT_ROUNDS),
         fullName,
       },
     });
@@ -53,255 +80,175 @@ export class AuthService {
     });
 
     return {
-      user: {
-        id: newUser.id,
-        email: newUser.email,
-        fullName: newUser.fullName,
-        role: newUser.role,
-      },
+      user: this.publicUser(newUser),
       message: 'User registered successfully',
     };
   }
 
-  async login(loginDto: LoginDto, deviceInfo?: string, ipAddress?: string) {
+  async login(loginDto: LoginDto, client: ClientInfo = {}) {
     const { email, password } = loginDto;
 
-    const user = await this.prisma.user.findUnique({
-      where: { email },
-    });
+    const user = await this.prisma.user.findUnique({ where: { email } });
 
-    // Prevent timing attacks by always hashing, even if user doesn't exist
-    const passwordHash =
-      user?.passwordHash ||
-      (await this.hashData('dummy-password-to-prevent-timing-attack'));
-    const passwordMatches = await bcrypt.compare(password, passwordHash);
+    // Always run a bcrypt compare so unknown emails take as long as known ones.
+    const passwordMatches = await bcrypt.compare(
+      password,
+      user?.passwordHash ?? this.dummyHash,
+    );
 
     // Use consistent error message to prevent account enumeration
     if (!user || !user.isActive || !passwordMatches) {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    const tokens = await this.generateTokens(user);
-    const hashedRt = await this.hashData(tokens.refreshToken);
+    const tokens = await this.issueTokens(user, randomUUID(), client);
+    await this.pruneSessions(user.id);
 
-    // Store refresh token with device info for multi-device support
-    const refreshExpiry =
-      this.config.get<string>('JWT_REFRESH_EXPIRY') || '30d';
-    const expiryMs = this.parseExpiryToMilliseconds(refreshExpiry);
-    const expiresAt = new Date(Date.now() + expiryMs);
+    this.logger.log({ message: 'User logged in', userId: user.id });
 
-    await this.prisma.refreshToken.create({
-      data: {
-        token: hashedRt,
-        userId: user.id,
-        deviceInfo: deviceInfo || 'Unknown Device',
-        ipAddress: ipAddress || 'Unknown IP',
-        expiresAt,
-      },
-    });
-
-    // Clean up expired tokens for this user
-    await this.cleanupExpiredTokens(user.id);
-
-    this.logger.log({
-      message: 'User logged in',
-      userId: user.id,
-      role: user.role,
-      timestamp: new Date().toISOString(),
-    });
-
-    return {
-      user: {
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        role: user.role,
-      },
-      ...tokens,
-    };
+    return { user: this.publicUser(user), ...tokens };
   }
 
+  /**
+   * Rotates a refresh token. Each token can be used once; presenting a token
+   * that was already rotated means it leaked, so the whole family is revoked.
+   */
   async refreshToken(
-    userId: string,
-    rt: string,
-    deviceInfo?: string,
-    ipAddress?: string,
-  ) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
+    presentedToken: string,
+    client: ClientInfo = {},
+  ): Promise<IssuedTokens> {
+    const stored = await this.prisma.refreshToken.findUnique({
+      where: { tokenHash: this.hashToken(presentedToken) },
+      include: { user: true },
     });
 
-    if (!user || !user.isActive) {
-      throw new ForbiddenException('Invalid refresh token');
-    }
-
-    // Find matching refresh token in database
-    const storedTokens = await this.prisma.refreshToken.findMany({
-      where: {
-        userId: user.id,
-        expiresAt: { gte: new Date() },
-      },
-    });
-
-    let isValidToken = false;
-    let validTokenId: string | null = null;
-
-    // Check if provided token matches any stored token
-    for (const storedToken of storedTokens) {
-      const matches = await bcrypt.compare(rt, storedToken.token);
-      if (matches) {
-        isValidToken = true;
-        validTokenId = storedToken.id;
-        break;
-      }
-    }
-
-    if (!isValidToken || !validTokenId) {
+    if (!stored) {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    // Generate new tokens
-    const tokens = await this.generateTokens(user);
-    const hashedRt = await this.hashData(tokens.refreshToken);
-
-    // Update the refresh token (rotation)
-    const refreshExpiry =
-      this.config.get<string>('JWT_REFRESH_EXPIRY') || '30d';
-    const expiryMs = this.parseExpiryToMilliseconds(refreshExpiry);
-    const expiresAt = new Date(Date.now() + expiryMs);
-
-    await this.prisma.refreshToken.update({
-      where: { id: validTokenId },
-      data: {
-        token: hashedRt,
-        deviceInfo: deviceInfo || 'Unknown Device',
-        ipAddress: ipAddress || 'Unknown IP',
-        expiresAt,
-        updatedAt: new Date(),
-      },
-    });
-
-    return tokens;
-  }
-
-  async logout(userId: string, rt?: string) {
-    if (rt) {
-      // Find and delete the specific refresh token
-      const storedTokens = await this.prisma.refreshToken.findMany({
-        where: { userId },
+    if (stored.revokedAt) {
+      await this.revokeFamily(stored.familyId);
+      this.logger.warn({
+        message: 'Refresh token reuse detected; session family revoked',
+        userId: stored.userId,
+        familyId: stored.familyId,
       });
-
-      for (const storedToken of storedTokens) {
-        const matches = await bcrypt.compare(rt, storedToken.token);
-        if (matches) {
-          await this.prisma.refreshToken.delete({
-            where: { id: storedToken.id },
-          });
-          break;
-        }
-      }
-    } else {
-      // Logout from all devices
-      await this.prisma.refreshToken.deleteMany({
-        where: { userId },
-      });
+      throw new UnauthorizedException('Invalid refresh token');
     }
 
-    return {
-      message: 'Logged out successfully',
-    };
+    if (stored.expiresAt < new Date() || !stored.user.isActive) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    // Revoke only if nobody else rotated it first (concurrent refresh).
+    const { count } = await this.prisma.refreshToken.updateMany({
+      where: { id: stored.id, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    if (count === 0) {
+      await this.revokeFamily(stored.familyId);
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    return this.issueTokens(stored.user, stored.familyId, client);
+  }
+
+  /** Revokes the session the presented refresh token belongs to, if any. */
+  async logout(presentedToken?: string) {
+    if (presentedToken) {
+      const stored = await this.prisma.refreshToken.findUnique({
+        where: { tokenHash: this.hashToken(presentedToken) },
+      });
+      if (stored) {
+        await this.revokeFamily(stored.familyId);
+      }
+    }
+    return { message: 'Logged out successfully' };
+  }
+
+  /** Signs the user out of every device. */
+  async revokeAllSessions(userId: string): Promise<void> {
+    await this.prisma.refreshToken.deleteMany({ where: { userId } });
   }
 
   async getMe(userId: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    const safeUser = {
+    return this.publicUser(user);
+  }
+
+  // Helper Methods
+
+  private publicUser(user: User) {
+    return {
       id: user.id,
       email: user.email,
       fullName: user.fullName,
       role: user.role,
     };
-
-    return safeUser;
   }
 
-  // Helper Methods
-
-  async hashData(data: string): Promise<string> {
-    const salt = await bcrypt.genSalt(12); // Use 12 rounds for 2025 security standards
-    return bcrypt.hash(data, salt);
+  private hashToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
   }
 
-  async generateTokens(
+  private async issueTokens(
     user: User,
-  ): Promise<{ accessToken: string; refreshToken: string }> {
-    const payload = { sub: user.id, role: user.role, email: user.email };
-    const accessExpiry = this.config.get<string>('JWT_ACCESS_EXPIRY') || '15m';
-    const refreshExpiry = this.config.get<string>('JWT_REFRESH_EXPIRY') || '7d';
-
-    const [accessToken, refreshToken] = await Promise.all([
-      // @ts-expect-error - JWT library type definition issue with expiresIn accepting string
-      this.jwtService.signAsync(payload, {
+    familyId: string,
+    client: ClientInfo,
+  ): Promise<IssuedTokens> {
+    const accessToken = await this.jwtService.signAsync(
+      { sub: user.id, role: user.role, email: user.email },
+      {
         secret: this.config.get<string>('JWT_ACCESS_SECRET'),
-        expiresIn: accessExpiry,
-      }),
-      // @ts-expect-error - JWT library type definition issue with expiresIn accepting string
-      this.jwtService.signAsync(payload, {
-        secret: this.config.get<string>('JWT_REFRESH_SECRET'),
-        expiresIn: refreshExpiry,
-      }),
-    ]);
-    return {
-      accessToken,
-      refreshToken,
-    };
-  }
+        expiresIn: Math.floor(this.accessTokenTtlMs / 1000),
+      },
+    );
 
-  private async cleanupExpiredTokens(userId: string) {
-    // Remove expired refresh tokens for this user
-    await this.prisma.refreshToken.deleteMany({
-      where: {
-        userId,
-        expiresAt: { lt: new Date() },
+    const refreshToken = randomBytes(32).toString('base64url');
+
+    await this.prisma.refreshToken.create({
+      data: {
+        tokenHash: this.hashToken(refreshToken),
+        familyId,
+        userId: user.id,
+        deviceInfo: client.deviceInfo?.slice(0, 255) ?? 'Unknown Device',
+        ipAddress: client.ipAddress?.slice(0, 45) ?? 'Unknown IP',
+        expiresAt: new Date(Date.now() + this.refreshTokenTtlMs),
       },
     });
 
-    // Optional: Limit to 5 most recent tokens per user
-    const tokens = await this.prisma.refreshToken.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      skip: 5,
-    });
-
-    if (tokens.length > 0) {
-      await this.prisma.refreshToken.deleteMany({
-        where: {
-          id: { in: tokens.map((t) => t.id) },
-        },
-      });
-    }
+    return { accessToken, refreshToken };
   }
 
-  private parseExpiryToMilliseconds(expiry: string): number {
-    const match = expiry.match(/^(\d+)([smhd])$/);
-    if (!match) return 30 * 24 * 60 * 60 * 1000; // default 30 days
+  private async revokeFamily(familyId: string): Promise<void> {
+    await this.prisma.refreshToken.deleteMany({ where: { familyId } });
+  }
 
-    const value = parseInt(match[1], 10);
-    const unit = match[2];
+  /**
+   * Drops expired rows and keeps the newest sessions per user. Revoked rows
+   * stay until they expire so a replayed token is still recognised.
+   */
+  private async pruneSessions(userId: string): Promise<void> {
+    await this.prisma.refreshToken.deleteMany({
+      where: { userId, expiresAt: { lt: new Date() } },
+    });
 
-    const units: { [key: string]: number } = {
-      s: 1000,
-      m: 60 * 1000,
-      h: 60 * 60 * 1000,
-      d: 24 * 60 * 60 * 1000,
-    };
-
-    return value * units[unit];
+    const active = await this.prisma.refreshToken.findMany({
+      where: { userId, revokedAt: null },
+      orderBy: { createdAt: 'desc' },
+      select: { familyId: true },
+    });
+    const families = [...new Set(active.map((t) => t.familyId))];
+    const stale = families.slice(MAX_SESSIONS_PER_USER);
+    if (stale.length > 0) {
+      await this.prisma.refreshToken.deleteMany({
+        where: { familyId: { in: stale } },
+      });
+    }
   }
 }

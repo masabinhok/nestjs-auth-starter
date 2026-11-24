@@ -2,34 +2,43 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Post,
   Req,
   Res,
-  UseGuards,
+  UnauthorizedException,
 } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { Request, Response } from 'express';
-import { RefreshTokenGuard } from 'src/common/guards/refresh-token.guard';
+import { ConfigService } from '@nestjs/config';
+import type { Request, Response } from 'express';
+import { Throttle, SkipThrottle } from '@nestjs/throttler';
+import { AuthService, ClientInfo, IssuedTokens } from './auth.service';
 import { GetUser } from 'src/common/decorators/get-user.decorator';
 import { Public } from 'src/common/decorators/public.decorator';
 import { SignupDto } from './dtos/signup.dto';
 import { LoginDto } from './dtos/login.dto';
-import { Throttle, SkipThrottle } from '@nestjs/throttler';
-import { COOKIE_CONFIG } from 'src/common/constants/cookie.config';
-import { CookieOptions } from 'express';
+import {
+  ACCESS_TOKEN_COOKIE,
+  REFRESH_TOKEN_COOKIE,
+  REFRESH_TOKEN_COOKIE_PATH,
+  authCookieOptions,
+} from 'src/common/constants/cookie.config';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly config: ConfigService,
+  ) {}
 
-  @Throttle({ strict: { ttl: 60000, limit: 3 } })
+  @Throttle({ default: { ttl: 60_000, limit: 3 } })
   @Public()
   @Post('/signup')
   async signup(@Body() signupDto: SignupDto) {
     return this.authService.signup(signupDto);
   }
 
-  @Throttle({ strict: { ttl: 60000, limit: 5 } })
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @Public()
   @Post('/login')
   async login(
@@ -37,97 +46,85 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const deviceInfo = req.headers['user-agent'] || 'Unknown Device';
-    const ipAddress =
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0] ||
-      req.ip ||
-      'Unknown IP';
-
-    const data = await this.authService.login(loginDto, deviceInfo, ipAddress);
-
-    res.cookie(
-      COOKIE_CONFIG.ACCESS_TOKEN.name,
-      data.accessToken,
-      COOKIE_CONFIG.ACCESS_TOKEN.options as CookieOptions,
-    );
-    res.cookie(
-      COOKIE_CONFIG.REFRESH_TOKEN.name,
-      data.refreshToken,
-      COOKIE_CONFIG.REFRESH_TOKEN.options as CookieOptions,
-    );
-
-    return {
-      user: data.user,
-    };
+    const data = await this.authService.login(loginDto, this.clientInfo(req));
+    this.setAuthCookies(res, data);
+    return { user: data.user };
   }
 
-  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @Public()
-  @UseGuards(RefreshTokenGuard)
   @Post('/refresh')
   async refreshToken(
-    @GetUser('sub') userId: string,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const rt = req.cookies['refreshToken'] as string;
-    const deviceInfo = req.headers['user-agent'] || 'Unknown Device';
-    const ipAddress =
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0] ||
-      req.ip ||
-      'Unknown IP';
-
-    const { accessToken, refreshToken } = await this.authService.refreshToken(
-      userId,
-      rt,
-      deviceInfo,
-      ipAddress,
+    const presented = this.refreshCookie(req);
+    if (!presented) {
+      throw new UnauthorizedException('Refresh Token missing or malformed');
+    }
+    const tokens = await this.authService.refreshToken(
+      presented,
+      this.clientInfo(req),
     );
-
-    res.cookie(
-      COOKIE_CONFIG.ACCESS_TOKEN.name,
-      accessToken,
-      COOKIE_CONFIG.ACCESS_TOKEN.options as CookieOptions,
-    );
-    res.cookie(
-      COOKIE_CONFIG.REFRESH_TOKEN.name,
-      refreshToken,
-      COOKIE_CONFIG.REFRESH_TOKEN.options as CookieOptions,
-    );
-
-    return {
-      message: 'Tokens refreshed successfully',
-    };
+    this.setAuthCookies(res, tokens);
+    return { message: 'Tokens refreshed successfully' };
   }
 
+  /** Always clears cookies, even if the refresh token already expired. */
   @Public()
-  @UseGuards(RefreshTokenGuard)
+  @HttpCode(HttpStatus.OK)
   @Post('/logout')
-  async logout(
-    @GetUser('sub') userId: string,
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    const rt = req.cookies['refreshToken'] as string | undefined;
-    await this.authService.logout(userId, rt);
-
-    res.clearCookie(
-      COOKIE_CONFIG.ACCESS_TOKEN.name,
-      COOKIE_CONFIG.ACCESS_TOKEN.options as CookieOptions | undefined,
-    );
-    res.clearCookie(
-      COOKIE_CONFIG.REFRESH_TOKEN.name,
-      COOKIE_CONFIG.REFRESH_TOKEN.options as CookieOptions | undefined,
-    );
-
-    return {
-      message: 'Logged out successfully',
-    };
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    await this.authService.logout(this.refreshCookie(req));
+    const base = authCookieOptions(this.isProduction, 0);
+    res.clearCookie(ACCESS_TOKEN_COOKIE, { ...base, maxAge: undefined });
+    res.clearCookie(REFRESH_TOKEN_COOKIE, {
+      ...base,
+      maxAge: undefined,
+      path: REFRESH_TOKEN_COOKIE_PATH,
+    });
+    // Also clear the pre-1.1 refresh cookie, which was scoped to "/".
+    res.clearCookie(REFRESH_TOKEN_COOKIE, { ...base, maxAge: undefined });
+    return { message: 'Logged out successfully' };
   }
 
   @SkipThrottle()
   @Get('/me')
   async getMe(@GetUser('sub') userId: string) {
     return this.authService.getMe(userId);
+  }
+
+  private get isProduction(): boolean {
+    return this.config.get<string>('NODE_ENV') === 'production';
+  }
+
+  private refreshCookie(req: Request): string | undefined {
+    const value: unknown = req.cookies?.[REFRESH_TOKEN_COOKIE];
+    return typeof value === 'string' && value.length > 0 ? value : undefined;
+  }
+
+  /** `req.ip` honours the TRUST_PROXY setting; raw headers are not trusted. */
+  private clientInfo(req: Request): ClientInfo {
+    return {
+      deviceInfo: req.headers['user-agent'],
+      ipAddress: req.ip,
+    };
+  }
+
+  private setAuthCookies(res: Response, tokens: IssuedTokens): void {
+    res.cookie(
+      ACCESS_TOKEN_COOKIE,
+      tokens.accessToken,
+      authCookieOptions(this.isProduction, this.authService.accessTokenTtlMs),
+    );
+    res.cookie(
+      REFRESH_TOKEN_COOKIE,
+      tokens.refreshToken,
+      authCookieOptions(
+        this.isProduction,
+        this.authService.refreshTokenTtlMs,
+        REFRESH_TOKEN_COOKIE_PATH,
+      ),
+    );
   }
 }

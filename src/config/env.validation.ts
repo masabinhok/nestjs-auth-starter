@@ -19,7 +19,7 @@ export const envSchema = z.object({
   JWT_ACCESS_EXPIRY: z
     .string()
     .regex(/^\d+[smhd]$/, 'JWT_ACCESS_EXPIRY must be in format: 60m, 1h, etc.')
-    .default('60m'),
+    .default('15m'),
   JWT_REFRESH_EXPIRY: z
     .string()
     .regex(/^\d+[smhd]$/, 'JWT_REFRESH_EXPIRY must be in format: 7d, 30d, etc.')
@@ -29,12 +29,17 @@ export const envSchema = z.object({
   CORS_ORIGIN: z
     .string()
     .refine((val) => {
-      // Allow comma-separated origins
+      // Comma-separated origins. "*" is not allowed: auth uses credentialed
+      // requests, and browsers reject "*" together with credentials.
       const origins = val.split(',').map((o) => o.trim());
-      const urlRegex = /^https?:\/\/.+/;
-      return origins.every((origin) => urlRegex.test(origin) || origin === '*');
-    }, 'CORS_ORIGIN must be valid URL(s) or "*". Multiple origins: "http://localhost:3000,https://example.com"')
+      const urlRegex = /^https?:\/\/[^/\s]+$/;
+      return origins.every((origin) => urlRegex.test(origin));
+    }, 'CORS_ORIGIN must be one or more origins without a trailing slash, e.g. "http://localhost:3000,https://example.com"')
     .default('http://localhost:3000'),
+
+  // Proxy trust for req.ip, passed to Express "trust proxy"
+  // (e.g. "1" for one hop, "loopback", or a subnet list). Unset = trust none.
+  TRUST_PROXY: z.string().optional(),
 
   // Logging
   LOG_LEVEL: z

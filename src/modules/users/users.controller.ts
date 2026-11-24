@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Query,
 } from '@nestjs/common';
@@ -43,14 +44,14 @@ export class UsersController {
 
   @Roles(UserRole.ADMIN)
   @Get('/:id')
-  async getUserById(@Param('id') id: string) {
+  async getUserById(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.getUserById(id);
   }
 
   @Roles(UserRole.ADMIN)
   @Patch('/:id')
   async updateUserById(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() updateUserDto: UpdateUserDto,
   ) {
     return this.usersService.updateUserById(id, updateUserDto);
@@ -59,7 +60,7 @@ export class UsersController {
   //this soft deletes a user by setting isActive to false
   @Roles(UserRole.ADMIN)
   @Delete('/:id')
-  async deleteUserById(@Param('id') id: string) {
+  async deleteUserById(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.deleteUserById(id);
   }
 }
