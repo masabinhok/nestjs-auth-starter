@@ -1,0 +1,32 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":semanticCommits", "helpers:pinGitHubActionDigestsToSemver"],
+  "schedule": ["before 6am on monday"],
+  "timezone": "UTC",
+  "minimumReleaseAge": "3 days",
+  "vulnerabilityAlerts": { "enabled": true, "minimumReleaseAge": null },
+  "packageRules": [
+    {
+      "description": "NestJS core packages move together",
+      "groupName": "nestjs",
+      "matchPackageNames": ["@nestjs/{/,}**", "!@nestjs/authentication", "!@nestjs/authorization"]
+    },
+    {
+      "description": "Pre-1.0 auth packages: every bump is reviewed and gated by the e2e suite",
+      "groupName": "nestjs auth packages",
+      "matchPackageNames": ["@nestjs/authentication", "@nestjs/authorization"],
+      "automerge": false
+    },
+    {
+      "description": "Prisma CLI and client must match",
+      "groupName": "prisma",
+      "matchPackageNames": ["prisma", "@prisma/{/,}**"]
+    },
+    {
+      "description": "Dev tooling patches are low risk",
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "automerge": true
+    }
+  ]
+}

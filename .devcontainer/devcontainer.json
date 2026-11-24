@@ -1,0 +1,18 @@
+{
+  "name": "NestJS Auth Starter",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:24",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+  },
+  "postCreateCommand": "corepack enable && pnpm install && cp -n .env.example .env && docker compose up -d postgres redis mailpit && pnpm prisma:migrate:deploy && pnpm prisma:seed",
+  "forwardPorts": [8080, 8025],
+  "portsAttributes": {
+    "8080": { "label": "API" },
+    "8025": { "label": "Mail inbox" }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["oxc.oxc-vscode", "esbenp.prettier-vscode", "Prisma.prisma"]
+    }
+  }
+}

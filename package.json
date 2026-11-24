@@ -28,7 +28,8 @@
     "prisma:seed": "prisma db seed",
     "prisma:studio": "prisma studio",
     "postinstall": "prisma generate",
-    "openapi": "nest build && node dist/export-openapi.js"
+    "openapi": "nest build && node dist/export-openapi.js",
+    "test:e2e:cov": "vitest run --config ./vitest.config.e2e.ts --coverage"
   },
   "dependencies": {
     "@nestjs/authentication": "~0.1.7",

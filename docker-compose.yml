@@ -1,0 +1,74 @@
+# Everything for local development:
+#
+#   docker compose up -d        # API on :8080, docs on :8080/docs, inbox on :8025
+#   docker compose run --rm seed
+#
+# Dev-only secrets below; never reuse them anywhere real.
+
+x-env: &env
+  DATABASE_URL: postgresql://postgres:postgres@postgres:5432/nest_auth
+  REDIS_URL: redis://redis:6379
+  AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-dev-only-jwt-secret-change-me-0000000000}
+  AUTH_MFA_ENCRYPTION_KEY: ${AUTH_MFA_ENCRYPTION_KEY:-dev-only-mfa-key-change-me-00000000000}
+  APP_URL: http://localhost:8080
+  WEB_URL: ${WEB_URL:-http://localhost:3000}
+  CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+  SMTP_URL: smtp://mailpit:1025
+  NODE_ENV: development
+  LOG_LEVEL: info
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: nest_auth
+    ports: ['5432:5432']
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 3s
+      retries: 20
+
+  redis:
+    image: redis:8-alpine
+    ports: ['6379:6379']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 3s
+      retries: 20
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports: ['8025:8025', '1025:1025']
+
+  migrate:
+    build: { context: ., target: deps }
+    command: ['pnpm', 'prisma', 'migrate', 'deploy']
+    environment: *env
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  seed:
+    build: { context: ., target: deps }
+    command: ['pnpm', 'prisma', 'db', 'seed']
+    environment:
+      <<: *env
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-admin-password-123}
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    profiles: [seed]
+
+  api:
+    build: { context: ., target: runtime }
+    environment:
+      <<: *env
+      NODE_ENV: production
+    ports: ['8080:8080']
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+      mailpit: { condition: service_started }
+
+volumes:
+  pgdata:

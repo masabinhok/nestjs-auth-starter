@@ -11,5 +11,18 @@ export default defineConfig({
     fileParallelism: false,
     testTimeout: 30_000,
     hookTimeout: 60_000,
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.ts'],
+      exclude: ['src/generated/**', 'src/main.ts', 'src/export-openapi.ts', '**/*.spec.ts'],
+      reportsDirectory: './coverage/e2e',
+      // Gates for CI. Raise them as coverage grows; don't lower them.
+      thresholds: {
+        lines: 88,
+        functions: 90,
+        branches: 75,
+        'src/auth/**': { lines: 95, functions: 95, branches: 85 },
+      },
+    },
   },
 });
