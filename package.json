@@ -17,7 +17,7 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:e2e": "jest --config ./test/jest-e2e.json --runInBand",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:create": "prisma migrate dev --create-only",
@@ -25,7 +25,8 @@
     "prisma:migrate:status": "prisma migrate status",
     "prisma:seed": "ts-node prisma/seed.ts",
     "prisma:studio": "prisma studio",
-    "prisma:reset": "prisma migrate reset --force"
+    "prisma:reset": "prisma migrate reset --force",
+    "db:test:up": "podman run -d --rm --name nest-auth-pg -e POSTGRES_PASSWORD=postgres -p 55432:5432 docker.io/library/postgres:17-alpine || docker run -d --rm --name nest-auth-pg -e POSTGRES_PASSWORD=postgres -p 55432:5432 postgres:17-alpine"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
@@ -95,9 +96,14 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "**/*.(t|j)s",
+      "!main.ts"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^src/(.*)$": "<rootDir>/$1",
+      "^generated/(.*)$": "<rootDir>/../generated/$1"
+    }
   }
 }
