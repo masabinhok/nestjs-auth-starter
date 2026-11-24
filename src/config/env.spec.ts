@@ -1,4 +1,5 @@
-import { EnvValidationError, featuresOf, parseEnv } from './env.js';
+import { readFileSync } from 'node:fs';
+import { EnvValidationError, envSchema, featuresOf, parseEnv } from './env.js';
 
 const base = {
   DATABASE_URL: 'postgresql://localhost/db',
@@ -48,5 +49,16 @@ describe('env', () => {
       CORS_ORIGIN: 'https://a.example, https://b.example',
     });
     expect(env.CORS_ORIGIN).toEqual(['https://a.example', 'https://b.example']);
+  });
+});
+
+describe('documentation', () => {
+  const keys = Object.keys(envSchema.shape);
+  const docs = readFileSync('docs/configuration.md', 'utf8');
+  const example = readFileSync('.env.example', 'utf8');
+
+  it.each(keys)('%s is documented', (key) => {
+    expect(docs).toContain(`\`${key}\``);
+    expect(example).toContain(key);
   });
 });

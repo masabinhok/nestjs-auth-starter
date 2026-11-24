@@ -1,627 +1,262 @@
 <div align="center">
 
-# nestjs-jwt-rbac-boilerplate
+<img src="banner.svg" alt="NestJS Auth Starter" width="100%">
 
-> Complete JWT authentication system with refresh token rotation, RBAC, and zero XSS risk
+**Production-ready authentication for NestJS 12, built on the official
+[`@nestjs/authentication`](https://docs.nestjs.com/security/authentication) and
+[`@nestjs/authorization`](https://docs.nestjs.com/security/authorization) packages.**
 
-![nestjs-jwt-rbac-boilerplate Banner](banner.png)
+[![CI](https://github.com/masabinhok/nestjs-jwt-rbac-boilerplate/actions/workflows/ci.yml/badge.svg)](https://github.com/masabinhok/nestjs-jwt-rbac-boilerplate/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/masabinhok/nestjs-jwt-rbac-boilerplate/actions/workflows/codeql.yml/badge.svg)](https://github.com/masabinhok/nestjs-jwt-rbac-boilerplate/actions/workflows/codeql.yml)
+[![NestJS 12](https://img.shields.io/badge/NestJS-12-e0234e?logo=nestjs)](https://nestjs.com)
+[![Node](https://img.shields.io/badge/node-%E2%89%A524.9-339933?logo=node.js&logoColor=white)](.nvmrc)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue?logo=typescript)](https://www.typescriptlang.org/)
-[![NestJS](https://img.shields.io/badge/NestJS-11.0-E0234E?logo=nestjs)](https://nestjs.com/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Postman Collection](https://img.shields.io/badge/Postman-Collection-FF6C37?logo=postman)](https://web.postman.co/workspace/My-Workspace~f38931e2-b991-4b76-8f08-cd3c064519a2/collection/37117103-972a16b7-a0de-42de-b220-e1a872a4ffc1?action=share&source=copy-link&creator=37117103)
-[![Medium Blog](https://img.shields.io/badge/Medium-Blog_Post-12100E?logo=medium)](https://medium.com/@sabin.shrestha.er/stop-rebuilding-auth-a-production-ready-jwt-rbac-template-for-nestjs-18d99f9b8944)
-
-###  **If this saves you 40+ hours, ⭐ the repo**
-
----
-
-## **Quick Start with CLI**
-
-```bash
-npx create-nestjs-auth@latest
-```
-
-Interactive scaffolding tool that sets up this entire boilerplate in a few steps. Configure database, JWT secrets, and dependencies automatically.
-
-[GitHub](https://github.com/masabinhok/create-nestjs-auth) • [npm](https://www.npmjs.com/package/create-nestjs-auth)
+[Quick start](#quick-start) · [Features](#features) · [How it works](#how-it-works) · [API](#api) · [Docs](docs/) · [Upgrading from v1](docs/migration-v2.md)
 
 </div>
 
 ---
 
-## What This Solves
+NestJS now ships official authentication and authorization packages. They do
+the security-critical parts (sessions, token rotation, TOTP, magic links,
+OIDC) and leave the rest to your app: where state is stored, how users are
+loaded, which emails go out. This starter is that rest, done properly:
 
-- **Problem**: Building secure JWT auth with refresh tokens in NestJS takes 40+ hours and requires deep security knowledge.
-- **Solution**: This gives you a production-ready auth system in 3 minutes—tested patterns, no security holes.
+- **Postgres storage for every contract**, verified by the package's own
+  contract suite, including its concurrency cases.
+- **Every flow wired end to end**, with tests: sign-up and email
+  verification, password reset, 2FA, passkeys, magic links, Google and
+  GitHub, API keys, device management.
+- **Ready to run**: one `docker compose up` gives you the API, Postgres,
+  Redis and a mail inbox.
 
-## Why Choose This Over Alternatives?
+Clone it, delete what you don't need (each feature is a switch), and build
+your product on top.
 
-| Feature | This Boilerplate | Passport JWT | NestJS Auth Samples | Custom JWT | Auth0/Clerk |
-|---------|------------------|--------------|---------------------|------------|-------------|
-| **Setup Time** | 3 minutes | 2-4 hours | 4-6 hours | 40+ hours | 1-2 hours |
-| **Refresh Token Rotation** | Yes - Auto-rotation | No - Manual | No - Manual | No - Manual | Yes - Built-in |
-| **Multi-Device Sessions** | Yes - 5 devices/user | No | No | No - Manual | Yes - Built-in |
-| **HttpOnly Cookie Auth** | Yes - Zero XSS risk | Manual setup | Manual setup | No - Manual | Yes - Built-in |
-| **RBAC Guards** | Yes - `@Roles()` decorator | Manual guards | Basic example | No - DIY | Yes - Built-in |
-| **Rate Limiting** | Yes - Configured | No - Manual | No | No - Manual | Yes - Built-in |
-| **Structured Logging** | Yes - Pino + PII redaction | No - Console | No | No - Manual | Yes - Built-in |
-| **Database Integration** | Yes - Prisma + PostgreSQL | Your choice | TypeORM example | No - DIY | Managed |
-| **Token Invalidation** | Yes - DB-backed | No - Stateless only | No | No - Manual | Yes - Built-in |
-| **Brute-Force Protection** | Yes - 5 attempts/min | No - Manual | No | No - Manual | Yes - Built-in |
-| **Health Checks** | Yes - K8s-ready probes | No - Manual | No | No - Manual | N/A |
-| **Password Validation** | Yes - Regex + bcrypt 12 | Basic | No | No - Manual | Yes - Built-in |
-| **E2E Tests** | Yes - Included | No - Manual | No | No - Manual | API tests |
-| **Self-Hosted** | Yes - Free | Yes - Free | Yes - Free | Yes - Free | $25/mo+ |
-| **No Vendor Lock-in** | Yes - Full control | Yes - Full control | Yes - Full control | Yes - Full control | No - Locked |
-| **Production-Ready** | Yes - Day 1 | Needs work | No - Example only | No - Needs testing | Yes - Enterprise |
+## Quick start
 
-### The Real Cost of Alternatives
-
-| Solution | Setup | Security Hardening | Testing | Maintenance | **Total** |
-|----------|-------|-------------------|---------|-------------|-----------|
-| **This Boilerplate** | 3 min | Done | Done | Minimal | **3 min** |
-| **Passport JWT** | 2h | 8h (refresh, cookies) | 4h | Medium | **14h** |
-| **Custom JWT** | 6h | 20h (all features) | 10h | High | **36h+** |
-| **Auth0/Clerk** | 1h | Done | 2h | Vendor dependency | **3h + $$$** |
-
-**Verdict**: Use this if you need production-grade auth without the 40-hour investment or monthly SaaS fees.
-
-## Core Features
-
-- **Token rotation**: Opaque refresh tokens rotate on every use; replaying an old token revokes the whole session
-- **Zero XSS risk**: HttpOnly cookies only—no localStorage, no client-side token access
-- **RBAC in 2 lines**: Add `@Roles(UserRole.ADMIN)` to any endpoint—done
-- **Multi-device sessions**: Track 5 devices per user with automatic cleanup
-- **Brute-force protection**: Rate limiting: 5 login attempts/minute per client, 100 requests/minute globally
-- **PII-safe logs**: Pino structured logging—passwords/tokens auto-redacted
-- **Bcrypt 12 rounds**: Industry-standard password hashing (2025 security baseline)
-
-**Tech Stack**: NestJS 11.0, Prisma 6.19, PostgreSQL, Pino, Zod validation
-
-## Requirements
-
-- Node.js >= 20.x
-- PostgreSQL >= 16.x
-- npm >= 10.x
-
-## 3-Minute Setup
-
-### 1. Clone and Install
+You need Docker. Then:
 
 ```bash
-git clone https://github.com/masabinhok/nestjs-jwt-rbac-boilerplate.git
-cd nestjs-jwt-rbac-boilerplate
-npm install
+git clone https://github.com/masabinhok/nestjs-jwt-rbac-boilerplate.git nestjs-auth
+cd nestjs-auth
+docker compose up -d                  # API, Postgres, Redis, Mailpit
+docker compose run --rm seed          # admin@example.com / admin-password-123
 ```
 
-### 2. Configure Environment
+| What | Where |
+| --- | --- |
+| API | http://localhost:8080/api/v1 |
+| Interactive API reference | http://localhost:8080/docs |
+| Inbox for every email the app sends | http://localhost:8025 |
+
+Try it:
+
+```bash
+# Browser-style sign-in: a session cookie
+curl -i -c jar -X POST localhost:8080/api/v1/auth/login \
+  -H 'content-type: application/json' \
+  -d '{"email":"admin@example.com","password":"admin-password-123"}'
+curl -b jar localhost:8080/api/v1/auth/me
+
+# Mobile/CLI-style sign-in: a Bearer token and a refresh token
+curl -X POST localhost:8080/api/v1/auth/token \
+  -H 'content-type: application/json' \
+  -d '{"email":"admin@example.com","password":"admin-password-123"}'
+```
+
+Or open [`bruno/`](bruno/) in [Bruno](https://www.usebruno.com) for a ready-made
+collection of every endpoint.
+
+<details>
+<summary><b>Run the API outside Docker</b> (for development)</summary>
+
+Requires Node 24.9+ and pnpm (`corepack enable`).
 
 ```bash
 cp .env.example .env
+docker compose up -d postgres redis mailpit
+pnpm install
+pnpm prisma:migrate:deploy
+pnpm prisma:seed                      # prints the admin password
+pnpm start:dev
 ```
 
-Generate secrets and edit `.env`:
-
-```bash
-# Generate JWT secrets
-openssl rand -base64 32
-```
-
-```env
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/nest_auth_db"
-JWT_ACCESS_SECRET="generated-secret-min-32-chars"
-JWT_REFRESH_SECRET="another-generated-secret-min-32-chars"
-JWT_ACCESS_EXPIRY="15m"
-JWT_REFRESH_EXPIRY="30d"
-NODE_ENV="development"
-PORT="8080"
-CORS_ORIGIN="http://localhost:3000"
-LOG_LEVEL="info"
-```
-
-### 3. Database
-
-```bash
-npm run prisma:generate && npm run prisma:migrate && npm run prisma:seed
-```
-
-**Default credentials**: `admin@example.com` / `Admin@123`
-
-### 4. Start & Verify
-
-```bash
-npm run start:dev
-```
-
-Verify it works:
-
-```bash
-curl http://localhost:8080/api/v1/health
-```
-
-Expected: `{"status":"ok","info":{"database":{"status":"up"}}...}`
-
-## API Reference
-
-Base URL: `http://localhost:8080/api/v1`
-
-### Authentication Endpoints
-
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| POST | `/auth/signup` | Register new user | No |
-| POST | `/auth/login` | Login with credentials | No |
-| POST | `/auth/refresh` | Refresh access token | Yes (refresh token) |
-| POST | `/auth/logout` | Logout and invalidate tokens | Yes |
-| GET | `/auth/me` | Get current user info | Yes |
-
-#### POST /auth/signup
-
-**Request:**
-```json
-{
-  "email": "user@example.com",
-  "password": "SecurePass@123",
-  "fullName": "John Doe"
-}
-```
-
-**Response 201:**
-```json
-{
-  "user": {
-    "id": "cm3k5j8l90000xyz",
-    "email": "user@example.com",
-    "fullName": "John Doe",
-    "role": "USER"
-  },
-  "message": "User registered successfully"
-}
-```
-
-**curl:**
-```bash
-curl -X POST http://localhost:8080/api/v1/auth/signup \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"SecurePass@123","fullName":"Test User"}'
-```
-
-#### POST /auth/login
-
-**Request:**
-```json
-{
-  "email": "admin@example.com",
-  "password": "Admin@123"
-}
-```
-
-**Response 200:**
-```json
-{
-  "user": {
-    "id": "cm3k5j8l90000xyz",
-    "email": "admin@example.com",
-    "fullName": "Admin User",
-    "role": "ADMIN"
-  }
-}
-```
-
-Sets cookies: `accessToken` (httpOnly, `JWT_ACCESS_EXPIRY`), `refreshToken` (httpOnly, `JWT_REFRESH_EXPIRY`, path `/api/v1/auth`)
-
-**curl:**
-```bash
-curl -X POST http://localhost:8080/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -c cookies.txt \
-  -d '{"email":"admin@example.com","password":"Admin@123"}'
-```
-
-#### POST /auth/refresh
-
-**Request:** No body (uses `refreshToken` cookie)
-
-**Response 200:**
-```json
-{
-  "message": "Tokens refreshed successfully"
-}
-```
-
-**curl:**
-```bash
-curl -X POST http://localhost:8080/api/v1/auth/refresh \
-  -b cookies.txt \
-  -c cookies.txt
-```
-
-#### POST /auth/logout
-
-**Request:** No body
-
-**Response 200:**
-```json
-{
-  "message": "Logged out successfully"
-}
-```
-
-**curl:**
-```bash
-curl -X POST http://localhost:8080/api/v1/auth/logout -b cookies.txt
-```
-
-#### GET /auth/me
-
-**Request:** No body (uses `accessToken` cookie)
-
-**Response 200:**
-```json
-{
-  "id": "cm3k5j8l90000xyz",
-  "email": "admin@example.com",
-  "fullName": "Admin User",
-  "role": "ADMIN",
-  "isActive": true,
-  "createdAt": "2025-11-16T10:30:00.000Z",
-  "updatedAt": "2025-11-16T10:30:00.000Z"
-}
-```
-
-**curl:**
-```bash
-curl -X GET http://localhost:8080/api/v1/auth/me -b cookies.txt
-```
-
-### User Profile Endpoints
-
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| GET | `/users/profile` | Get own profile | Yes |
-| PATCH | `/users/profile` | Update own profile | Yes |
-
-#### GET /users/profile
-
-**Response 200:**
-```json
-{
-  "id": "cm3k5j8l90000xyz",
-  "email": "user@example.com",
-  "fullName": "John Doe",
-  "role": "USER",
-  "isActive": true,
-  "createdAt": "2025-11-16T10:30:00.000Z",
-  "updatedAt": "2025-11-16T10:30:00.000Z"
-}
-```
-
-**curl:**
-```bash
-curl -X GET http://localhost:8080/api/v1/users/profile -b cookies.txt
-```
-
-#### PATCH /users/profile
-
-**Request:**
-```json
-{
-  "fullName": "John Smith"
-}
-```
-
-**Response 200:**
-```json
-{
-  "id": "cm3k5j8l90000xyz",
-  "email": "user@example.com",
-  "fullName": "John Smith",
-  "role": "USER",
-  "isActive": true,
-  "createdAt": "2025-11-16T10:30:00.000Z",
-  "updatedAt": "2025-11-16T10:30:00.000Z"
-}
-```
-
-**curl:**
-```bash
-curl -X PATCH http://localhost:8080/api/v1/users/profile \
-  -H "Content-Type: application/json" \
-  -b cookies.txt \
-  -d '{"fullName":"John Smith"}'
-```
-
-### Admin Endpoints
-
-Requires `ADMIN` role. Returns 403 for non-admin users.
-
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| GET | `/users` | List all users (paginated) | ADMIN |
-| GET | `/users/:id` | Get user by ID | ADMIN |
-| PATCH | `/users/:id` | Update user | ADMIN |
-| DELETE | `/users/:id` | Soft delete user | ADMIN |
-
-#### GET /users
-
-**Query params:** `page` (default: 1), `limit` (default: 10, max: 100)
-
-**Response 200:**
-```json
-{
-  "data": [
-    {
-      "id": "cm3k5j8l90000xyz",
-      "email": "user1@example.com",
-      "fullName": "User One",
-      "role": "USER",
-      "isActive": true,
-      "createdAt": "2025-11-16T10:30:00.000Z",
-      "updatedAt": "2025-11-16T10:30:00.000Z"
-    }
-  ],
-  "meta": {
-    "total": 150,
-    "page": 1,
-    "limit": 10,
-    "totalPages": 15,
-    "hasNext": true,
-    "hasPrevious": false
-  }
-}
-```
-
-**curl:**
-```bash
-curl -X GET "http://localhost:8080/api/v1/users?page=1&limit=10" -b cookies.txt
-```
-
-#### GET /users/:id
-
-**Response 200:**
-```json
-{
-  "id": "cm3k5j8l90000xyz",
-  "email": "user@example.com",
-  "fullName": "John Doe",
-  "role": "USER",
-  "isActive": true,
-  "createdAt": "2025-11-16T10:30:00.000Z",
-  "updatedAt": "2025-11-16T10:30:00.000Z"
-}
-```
-
-**curl:**
-```bash
-curl -X GET http://localhost:8080/api/v1/users/cm3k5j8l90000xyz -b cookies.txt
-```
-
-#### PATCH /users/:id
-
-**Request:**
-```json
-{
-  "fullName": "Updated Name",
-  "role": "ADMIN",
-  "isActive": false
-}
-```
-
-**Response 200:**
-```json
-{
-  "id": "cm3k5j8l90000xyz",
-  "email": "user@example.com",
-  "fullName": "Updated Name",
-  "role": "ADMIN",
-  "isActive": false,
-  "createdAt": "2025-11-16T10:30:00.000Z",
-  "updatedAt": "2025-11-16T10:30:00.000Z"
-}
-```
-
-**curl:**
-```bash
-curl -X PATCH http://localhost:8080/api/v1/users/cm3k5j8l90000xyz \
-  -H "Content-Type: application/json" \
-  -b cookies.txt \
-  -d '{"role":"ADMIN"}'
-```
-
-#### DELETE /users/:id
-
-Soft deletes user (sets `isActive: false`) and invalidates all refresh tokens.
-
-**Response 200:**
-```json
-{
-  "message": "User deleted successfully"
-}
-```
-
-**curl:**
-```bash
-curl -X DELETE http://localhost:8080/api/v1/users/cm3k5j8l90000xyz -b cookies.txt
-```
-
-### Health Check Endpoints
-
-Public endpoints (no auth required).
-
-| Method | Endpoint | Description | Use Case |
-|--------|----------|-------------|----------|
-| GET | `/health` | Full health check with DB | Load balancer checks |
-| GET | `/health/ready` | Readiness probe | Kubernetes readiness |
-| GET | `/health/live` | Liveness probe | Kubernetes liveness |
-
-#### GET /health
-
-**Response 200:**
-```json
-{
-  "status": "ok",
-  "info": {
-    "database": {
-      "status": "up"
-    }
-  },
-  "error": {},
-  "details": {
-    "database": {
-      "status": "up"
-    }
-  }
-}
-```
-
-**curl:**
-```bash
-curl http://localhost:8080/api/v1/health
-```
-
-#### GET /health/ready
-
-**Response 200:**
-```json
-{
-  "status": "ok",
-  "info": {
-    "database": {
-      "status": "up"
-    },
-    "application": {
-      "status": "up",
-      "uptime": 3600.5,
-      "timestamp": "2025-11-16T10:30:00.000Z"
-    }
-  }
-}
-```
-
-**curl:**
-```bash
-curl http://localhost:8080/api/v1/health/ready
-```
-
-#### GET /health/live
-
-**Response 200:**
-```json
-{
-  "status": "ok",
-  "uptime": 3600.5,
-  "timestamp": "2025-11-16T10:30:00.000Z",
-  "pid": 12345
-}
-```
-
-**curl:**
-```bash
-curl http://localhost:8080/api/v1/health/live
-```
-
-## How It Works
-
-### Token Flow
+</details>
+
+## Features
+
+**Sign-in**
+- Browser sessions in an `HttpOnly`, `Secure`, `__Host-` cookie, with
+  absolute and idle timeouts, rotated on privilege changes
+- Bearer access tokens and single-use refresh tokens for mobile apps and
+  CLIs; replaying a used refresh token revokes the whole token family
+- TOTP two-factor authentication with recovery codes; secrets encrypted at rest
+- Passkeys (WebAuthn)
+- Magic links, bound to the browser that requested them
+- Google and GitHub sign-in with PKCE, with account linking that prevents
+  pre-hijacking
+- Personal API keys for scripts (`Authorization: Bearer nak_…`)
+
+**Accounts**
+- Sign-up with email verification. Sign-up and password reset answer the
+  same whether or not an account exists
+- Password reset and change; both sign out other devices
+- "Where you're signed in": list sessions, sign out one device or all
+- Audit trail of sign-ins, failures, lockouts, MFA changes and key changes
+
+**Protection**
+- Per-account lockout plus per-client rate limits (Redis-backed across instances)
+- CSRF protection (Fetch Metadata) and security headers, built into Nest 12
+- Constant-time credential checks, so responses don't reveal which accounts exist
+- scrypt password hashing; v1 bcrypt hashes are upgraded on next sign-in
+
+**Authorization**
+- Policies with `@nestjs/authorization`: `@Can(UserPolicy, 'manage')` on routes,
+  `authorize()` in services, deny by default
+- Admin user management with protection against removing the last admin
+
+**Developer experience**
+- NestJS 12 (ESM), TypeScript 6 strict, Prisma 7, Vitest, oxlint, pnpm
+- OpenAPI 3 with a [Scalar](https://scalar.com) reference at `/docs`
+- RFC 9457 problem details with a stable `errorCode` on every error
+- Typed, validated configuration: the app refuses to start on a bad `.env`
+- Feature toggles: a disabled feature registers no routes
+- Docker image (non-root), docker compose, dev container
+- 100+ tests against real Postgres; CI on Node 24 and 26, CodeQL, Renovate,
+  release-please
+
+## How it works
 
 ```mermaid
-sequenceDiagram
-    participant C as Client
-    participant A as AuthService
-    participant D as Database
-    
-    C->>A: POST /auth/login
-    A->>D: Validate credentials
-    A->>A: Generate JWT tokens
-    A->>D: Store hashed refresh token
-    A->>C: Set httpOnly cookies (accessToken + refreshToken)
-    
-    Note over C,A: 1 hour later...
-    
-    C->>A: POST /auth/refresh (cookie)
-    A->>D: Find token in DB
-    A->>A: Generate NEW tokens
-    A->>D: Invalidate OLD token
-    A->>C: Set new httpOnly cookies
+flowchart LR
+  client([Browser / app / script]) --> guard
+  subgraph Nest app
+    guard[AuthenticationGuard<br/><sub>@nestjs/authentication</sub>] --> providers
+    providers{{"Credential providers<br/>session cookie · JWT bearer · API key"}} --> authz
+    authz[AuthorizationGuard<br/><sub>@nestjs/authorization</sub>] --> routes[Controllers]
+    routes --> services[SignInService · TokenService · MfaService<br/>PasswordResetService · MagicLinkService · OidcService]
+    services --> handlers[Handlers in this repo<br/>mail · user lookup · account linking]
+    services --> store[(PrismaAuthenticationStore)]
+  end
+  store --> pg[(PostgreSQL)]
+  handlers --> mail[[SMTP / Mailpit]]
 ```
 
-### Adding a Role
+The packages own the protocols. This repo owns:
 
-```typescript
-// 1. prisma/schema.prisma
-enum UserRole { USER ADMIN MODERATOR }
+| Piece | File |
+| --- | --- |
+| Storage for sessions, refresh tokens, MFA, email tokens, magic links, OIDC logins | [`src/auth/stores/prisma-authentication.store.ts`](src/auth/stores/prisma-authentication.store.ts) |
+| Who a cookie, JWT or API key belongs to | [`src/auth/providers/`](src/auth/providers) |
+| Emails for verification, reset and magic links; account linking for OAuth | [`src/auth/handlers/`](src/auth/handlers) |
+| Password checks, legacy bcrypt upgrade, account lockout | [`src/auth/login.service.ts`](src/auth/login.service.ts), [`passwords.service.ts`](src/auth/passwords.service.ts) |
+| Passkeys | [`src/auth/passkeys/`](src/auth/passkeys) |
+| Policies | [`src/users/user.policy.ts`](src/users/user.policy.ts) |
+| Which features are on | [`src/config/env.ts`](src/config/env.ts), [`src/auth/auth.module.ts`](src/auth/auth.module.ts) |
 
-// 2. Run migration
-npm run prisma:migrate
+More in [docs/architecture.md](docs/architecture.md), including sequence
+diagrams for each flow.
 
-// 3. Any controller
-@Roles(UserRole.MODERATOR)
-@Delete('posts/:id')
-deletePost() { }
-```
+## API
 
-### Logging
+All routes live under `/api/v1`. The full, typed reference is at `/docs` when
+the app runs, and in [`openapi.json`](openapi.json).
+
+| Area | Routes |
+| --- | --- |
+| Sign-in | `POST /auth/signup` · `POST /auth/login` · `POST /auth/mfa/verify` · `POST /auth/logout` · `POST /auth/logout-all` · `GET /auth/me` |
+| Tokens | `POST /auth/token` · `POST /auth/token/refresh` · `POST /auth/token/revoke` |
+| Account | `POST /auth/email/verify` · `POST /auth/email/resend` · `POST /auth/password/forgot` · `POST /auth/password/reset` · `POST /auth/password/change` · `GET /auth/activity` |
+| Devices | `GET /auth/sessions` · `DELETE /auth/sessions/:id` |
+| 2FA | `GET /auth/mfa` · `POST /auth/mfa/enroll` · `POST /auth/mfa/confirm` · `POST /auth/mfa/recovery-codes` · `DELETE /auth/mfa` |
+| Passkeys | `POST /auth/passkeys/registration/{options,verify}` · `POST /auth/passkeys/authentication/{options,verify}` · `GET /auth/passkeys` · `DELETE /auth/passkeys/:id` |
+| Magic links | `POST /auth/magic-link` · `POST /auth/magic-link/consume` |
+| Google / GitHub | `GET /auth/oidc/providers` · `GET /auth/oidc/:provider/login` · `GET /auth/oidc/:provider/callback` |
+| API keys | `GET /auth/api-keys` · `POST /auth/api-keys` · `DELETE /auth/api-keys/:id` |
+| Users | `GET /users/me` · `PATCH /users/me` · admin: `GET /users` · `GET /users/:id` · `PATCH /users/:id` · `DELETE /users/:id` · `GET /users/:id/activity` |
+| Health | `GET /health` (readiness) · `GET /health/live` |
+
+Errors look like this, on every route:
 
 ```json
-{"level":30,"msg":"POST /auth/login - 200","userId":"cm3k...","durationMs":42}
+{
+  "type": "about:blank",
+  "title": "Unauthorized",
+  "status": 401,
+  "errorCode": "INVALID_CREDENTIALS",
+  "detail": "Invalid email or password",
+  "instance": "/api/v1/auth/login",
+  "requestId": "7c9e…"
+}
 ```
-
-PII auto-redacted: passwords, tokens, cookies. Change via `LOG_LEVEL` env.
 
 ## Configuration
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `DATABASE_URL` | Yes | - | PostgreSQL connection string |
-| `JWT_ACCESS_SECRET` | Yes | - | Access token secret (32+ chars) |
-| `JWT_REFRESH_SECRET` | Yes | - | Refresh token secret (32+ chars) |
-| `JWT_ACCESS_EXPIRY` | No | `15m` | Access token lifetime (format: `15m`, `1h`, `7d`) |
-| `JWT_REFRESH_EXPIRY` | No | `30d` | Refresh token lifetime |
-| `NODE_ENV` | No | `development` | `development`, `production`, or `test` |
-| `PORT` | No | `8080` | Server port |
-| `CORS_ORIGIN` | No | `http://localhost:3000` | Allowed origins (comma-separated, `*` not allowed) |
-| `TRUST_PROXY` | No | unset | Express `trust proxy` value when behind a load balancer (e.g. `1`) |
-| `LOG_LEVEL` | No | `info` | `fatal`, `error`, `warn`, `info`, `debug`, `trace` |
+Every setting is an environment variable, validated at startup by one
+[zod schema](src/config/env.ts). [`.env.example`](.env.example) lists them with
+defaults, and [docs/configuration.md](docs/configuration.md) explains each one.
+The ones you'll touch first:
 
-## Troubleshooting: Real Fixes
+| Variable | Default | |
+| --- | --- | --- |
+| `DATABASE_URL` | | Postgres connection string |
+| `AUTH_JWT_SECRET` | | 32+ random bytes: `openssl rand -base64 32` |
+| `AUTH_MFA_ENCRYPTION_KEY` | | 32+ random bytes, encrypts TOTP secrets |
+| `WEB_URL` | `http://localhost:3000` | Your frontend: emailed links open its pages |
+| `CORS_ORIGIN` | `http://localhost:3000` | Origins allowed to call the API with cookies |
+| `AUTH_MFA`, `AUTH_PASSKEYS`, `AUTH_MAGIC_LINK`, `AUTH_API_KEYS` | `true` | Feature switches |
+| `AUTH_GOOGLE_CLIENT_ID/SECRET`, `AUTH_GITHUB_CLIENT_ID/SECRET` | | Set both to enable a provider |
 
-### JWT verification fails
-**Symptom**: 401 on `/auth/me` after login  
-**Fix**: `rm -rf node_modules && npm install && npm run prisma:generate`
+## Customizing
 
-### Database connection error
-**Symptom**: "Can't reach database server"  
-**Fix**: `pg_isready -h localhost -p 5432` then `npm run prisma:migrate`
+- **Add a permission**: add a method to a `@Policy()` class and put
+  `@Can(Policy, 'method')` on the route. See [docs/customizing.md](docs/customizing.md).
+- **Change the emails**: edit [`src/infra/mail/mail.templates.ts`](src/infra/mail/mail.templates.ts).
+- **Use another database layer**: implement the six store interfaces (the
+  Prisma store is the reference) and run the contract suite in
+  [`test/stores.e2e-spec.ts`](test/stores.e2e-spec.ts) against it.
+- **Remove a feature**: set its switch to `false`, or delete its folder and
+  its line in [`auth.module.ts`](src/auth/auth.module.ts).
 
-### Token refresh fails
-**Symptom**: 401 on `/auth/refresh`  
-**Fix**: Clear cookies, login again: `curl -X POST ... -c cookies.txt`
+## Testing
 
-### Port 8080 in use
-**Symptom**: EADDRINUSE  
-**Fix**: `lsof -ti:8080 | xargs kill -9 && npm run start:dev`
+```bash
+pnpm test            # unit tests
+pnpm db:test:up      # throwaway Postgres on :55432 (Docker or Podman)
+pnpm test:e2e        # e2e against Postgres: every flow, the store contract suite
+pnpm test:e2e:cov    # with coverage gates
+```
 
-### CORS errors
-**Symptom**: Browser shows `Access-Control-Allow-Origin` error  
-**Fix**: Add your frontend URL to `CORS_ORIGIN` in `.env`, restart server
+## Is this the right starter for you?
+
+| If you want… | Consider |
+| --- | --- |
+| Auth on the official NestJS packages, with production storage, every flow wired, and tests | **this repo** |
+| To learn the packages step by step | the [official tutorial](https://docs.nestjs.com/security/authentication) |
+| A complete app boilerplate (i18n, file uploads, several databases) | [brocoders/nestjs-boilerplate](https://github.com/brocoders/nestjs-boilerplate) |
+| A framework-agnostic auth library with a plugin ecosystem | [Better Auth](https://www.better-auth.com) (NestJS support is community-maintained) |
+| No auth code at all | a hosted provider (Auth0, Clerk, WorkOS) |
+
+## Security
+
+The security model, threat notes and known limits are in
+[docs/security.md](docs/security.md). Report vulnerabilities privately, as
+described in [SECURITY.md](SECURITY.md).
+
+## Upgrading from v1
+
+v2 is a rewrite on the official packages. Passwords carry over: v1 bcrypt
+hashes still work and are upgraded to scrypt on each user's next sign-in.
+Clients need changes. See [docs/migration-v2.md](docs/migration-v2.md).
+v1 stays available on the [`v1`](../../tree/v1) branch.
 
 ## Contributing
 
-Fork, branch (`feature/name`), PR. Run `npm test` before PR. Keep changes minimal.
+Issues and PRs are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). Good
+first issues are [labelled](../../issues?q=is%3Aopen+label%3A%22good+first+issue%22).
 
 ## License
 
-MIT - see [LICENSE](LICENSE) file.
-
----
-
-<div align="center">
-
-**Built this? Please star the repo so others find it.**
-
-Need help? [Open an issue](https://github.com/masabinhok/nestjs-jwt-rbac-boilerplate/issues) (response < 24h)
-
-Built by [Sabin Shrestha](https://sabinshrestha69.com.np) • [GitHub](https://github.com/masabinhok)
-
-</div>
+[MIT](LICENSE)

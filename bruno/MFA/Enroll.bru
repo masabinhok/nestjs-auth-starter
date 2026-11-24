@@ -1,0 +1,15 @@
+meta {
+  name: Enroll
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/auth/mfa/enroll
+  body: none
+  auth: none
+}
+
+docs {
+  Scan the uri as a QR code (or type the secret) in an authenticator app.
+}

@@ -1,0 +1,21 @@
+meta {
+  name: Verify MFA code
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/auth/mfa/verify
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "code": "123456"
+  }
+}
+
+docs {
+  Completes a sign-in that returned mfaRequired: true.
+}

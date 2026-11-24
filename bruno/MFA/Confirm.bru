@@ -1,0 +1,21 @@
+meta {
+  name: Confirm
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/auth/mfa/confirm
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "code": "123456"
+  }
+}
+
+docs {
+  Returns recovery codes, once.
+}

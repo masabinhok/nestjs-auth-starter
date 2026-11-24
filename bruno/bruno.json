@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "NestJS Auth Starter",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

@@ -1,0 +1,17 @@
+meta {
+  name: Consume link
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/auth/magic-link/consume
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "token": "paste-token-from-email"
+  }
+}

@@ -1,0 +1,26 @@
+meta {
+  name: Refresh
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/auth/token/refresh
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "refreshToken": "{{refreshToken}}"
+  }
+}
+
+script:post-response {
+  bru.setVar('accessToken', res.body.accessToken);
+  bru.setVar('refreshToken', res.body.refreshToken);
+}
+
+docs {
+  Each refresh token works once. Running this twice with the old token revokes the family.
+}
