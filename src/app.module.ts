@@ -1,15 +1,15 @@
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
-import { AuthModule } from './modules/auth/auth.module';
+import { AuthModule } from './modules/auth/auth.module.js';
 import { LoggerModule } from 'nestjs-pino';
-import { PrismaModule } from './prisma/prisma.module';
-import { UsersModule } from './modules/users/users.module';
-import { HealthModule } from './modules/health/health.module';
-import { AppConfigModule } from './config/config.module';
-import { loggerConfig } from './config/logger.config';
-import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
-import { RolesGuard } from './common/guards/roles.guard';
-import { AuthGuard } from './common/guards/auth.guard';
+import { PrismaModule } from './prisma/prisma.module.js';
+import { UsersModule } from './modules/users/users.module.js';
+import { HealthModule } from './modules/health/health.module.js';
+import { AppConfigModule } from './config/config.module.js';
+import { loggerConfig } from './config/logger.config.js';
+import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware.js';
+import { RolesGuard } from './common/guards/roles.guard.js';
+import { AuthGuard } from './common/guards/auth.guard.js';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 
 @Module({

@@ -4,8 +4,8 @@ import { ConfigService } from '@nestjs/config';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
-import { ResponseInterceptor } from './common/interceptors/response.interceptor';
-import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { ResponseInterceptor } from './common/interceptors/response.interceptor.js';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
 
 /**
  * Applies global middleware, pipes, interceptors and filters.

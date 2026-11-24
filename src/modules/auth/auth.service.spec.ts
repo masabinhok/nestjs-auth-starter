@@ -3,29 +3,29 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { UnauthorizedException } from '@nestjs/common';
 import { Logger } from 'nestjs-pino';
-import { AuthService } from './auth.service';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { AuthService } from './auth.service.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
 
 describe('AuthService', () => {
   let service: AuthService;
   const prisma = {
-    user: { findUnique: jest.fn(), create: jest.fn() },
+    user: { findUnique: vi.fn(), create: vi.fn() },
     refreshToken: {
-      create: jest.fn(),
-      findMany: jest.fn(),
-      deleteMany: jest.fn(),
+      create: vi.fn(),
+      findMany: vi.fn(),
+      deleteMany: vi.fn(),
     },
   };
 
   beforeEach(async () => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
     const moduleRef = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: PrismaService, useValue: prisma },
-        { provide: JwtService, useValue: { signAsync: jest.fn() } },
-        { provide: ConfigService, useValue: { get: jest.fn() } },
-        { provide: Logger, useValue: { log: jest.fn() } },
+        { provide: JwtService, useValue: { signAsync: vi.fn() } },
+        { provide: ConfigService, useValue: { get: vi.fn() } },
+        { provide: Logger, useValue: { log: vi.fn() } },
       ],
     }).compile();
     service = moduleRef.get(AuthService);

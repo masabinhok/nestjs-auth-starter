@@ -1,6 +1,6 @@
 import { IsBoolean, IsEnum, IsOptional } from 'class-validator';
-import { UpdateProfileDto } from './update-profile.dto';
-import { UserRole } from 'generated/prisma/enums';
+import { UpdateProfileDto } from './update-profile.dto.js';
+import { UserRole } from '../../../generated/prisma/enums.js';
 
 export class UpdateUserDto extends UpdateProfileDto {
   @IsOptional()

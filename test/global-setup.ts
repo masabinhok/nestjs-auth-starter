@@ -6,7 +6,7 @@ export default function globalSetup(): void {
   const url =
     process.env.TEST_DATABASE_URL ??
     'postgresql://postgres:postgres@localhost:55432/nest_auth_test';
-  execSync('npx prisma migrate deploy', {
+  execSync('node_modules/.bin/prisma migrate deploy', {
     stdio: 'inherit',
     env: { ...process.env, DATABASE_URL: url },
   });

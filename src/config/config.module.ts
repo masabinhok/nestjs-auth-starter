@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { z } from 'zod';
-import { envSchema } from './env.validation';
+import { envSchema } from './env.validation.js';
 
 @Module({
   imports: [

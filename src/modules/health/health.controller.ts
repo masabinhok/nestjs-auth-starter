@@ -5,8 +5,8 @@ import {
   HealthCheck,
   PrismaHealthIndicator,
 } from '@nestjs/terminus';
-import { PrismaService } from 'src/prisma/prisma.service';
-import { Public } from 'src/common/decorators/public.decorator';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { Public } from '../../common/decorators/public.decorator.js';
 
 // Probes run every few seconds and must never be rate limited.
 @SkipThrottle()

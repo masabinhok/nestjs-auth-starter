@@ -1,11 +1,10 @@
-import { PrismaClient, UserRole } from '../generated/prisma/client';
+import { PrismaClient, UserRole } from '../src/generated/prisma/client.js';
 import * as bcrypt from 'bcrypt';
-import * as dotenv from 'dotenv';
+import { PrismaPg } from '@prisma/adapter-pg';
 
-// Load environment variables
-dotenv.config();
-
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
+});
 
 async function main() {
   console.log('🌱 Seeding database...');

@@ -3,10 +3,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
-import { UpdateProfileDto } from './dtos/update-profile.dto';
-import { User } from 'generated/prisma/client';
-import { UpdateUserDto } from './dtos/update-user.dto';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { UpdateProfileDto } from './dtos/update-profile.dto.js';
+import { User } from '../../generated/prisma/client.js';
+import { UpdateUserDto } from './dtos/update-user.dto.js';
 
 @Injectable()
 export class UsersService {
@@ -23,7 +23,7 @@ export class UsersService {
   async updateProfile(userId: string, updateProfileDto: UpdateProfileDto) {
     const updatedUser = await this.prisma.user.update({
       where: { id: userId },
-      data: { ...updateProfileDto },
+      data: { fullName: updateProfileDto.fullName },
     });
     return this.sanitizeUser(updatedUser);
   }
@@ -78,7 +78,11 @@ export class UsersService {
 
     const updatedUser = await this.prisma.user.update({
       where: { id: userId },
-      data: { ...updateUserDto },
+      data: {
+        fullName: updateUserDto.fullName,
+        role: updateUserDto.role,
+        isActive: updateUserDto.isActive,
+      },
     });
 
     // Role and status are baked into issued tokens; force a fresh login.

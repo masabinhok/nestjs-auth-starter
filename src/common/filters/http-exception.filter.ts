@@ -7,9 +7,9 @@ import {
   Inject,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
-import { ApiResponse } from '../interfaces/api-response.interface';
+import { ApiResponse } from '../interfaces/api-response.interface.js';
 import { Logger } from 'nestjs-pino';
-import { Prisma } from 'generated/prisma/client';
+import { Prisma } from '../../generated/prisma/client.js';
 
 interface NormalizedError {
   status: number;
@@ -38,7 +38,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const request = ctx.getRequest<Request>();
     const response = ctx.getResponse<Response>();
-    const correlationId = request['correlationId'] as string | undefined;
+    const correlationId = request.correlationId;
 
     const error = this.normalize(exception);
 

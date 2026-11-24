@@ -12,17 +12,17 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { Throttle, SkipThrottle } from '@nestjs/throttler';
-import { AuthService, ClientInfo, IssuedTokens } from './auth.service';
-import { GetUser } from 'src/common/decorators/get-user.decorator';
-import { Public } from 'src/common/decorators/public.decorator';
-import { SignupDto } from './dtos/signup.dto';
-import { LoginDto } from './dtos/login.dto';
+import { AuthService, ClientInfo, IssuedTokens } from './auth.service.js';
+import { GetUser } from '../../common/decorators/get-user.decorator.js';
+import { Public } from '../../common/decorators/public.decorator.js';
+import { SignupDto } from './dtos/signup.dto.js';
+import { LoginDto } from './dtos/login.dto.js';
 import {
   ACCESS_TOKEN_COOKIE,
   REFRESH_TOKEN_COOKIE,
   REFRESH_TOKEN_COOKIE_PATH,
   authCookieOptions,
-} from 'src/common/constants/cookie.config';
+} from '../../common/constants/cookie.config.js';
 
 @Controller('auth')
 export class AuthController {

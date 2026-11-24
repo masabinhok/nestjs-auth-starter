@@ -5,15 +5,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from '../../prisma/prisma.service.js';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { User } from 'generated/prisma/client';
+import { User } from '../../generated/prisma/client.js';
 import { Logger } from 'nestjs-pino';
-import { SignupDto } from './dtos/signup.dto';
-import { LoginDto } from './dtos/login.dto';
-import { parseDuration } from 'src/common/utils/duration';
+import { SignupDto } from './dtos/signup.dto.js';
+import { LoginDto } from './dtos/login.dto.js';
+import { parseDuration } from '../../common/utils/duration.js';
 
 const BCRYPT_ROUNDS = 12;
 const MAX_SESSIONS_PER_USER = 5;

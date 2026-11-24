@@ -4,9 +4,9 @@ import { ThrottlerStorage, ThrottlerStorageService } from '@nestjs/throttler';
 import { Logger } from 'nestjs-pino';
 import * as bcrypt from 'bcrypt';
 import request from 'supertest';
-import { AppModule } from 'src/app.module';
-import { configureApp } from 'src/app.setup';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { AppModule } from '../src/app.module.js';
+import { configureApp } from '../src/app.setup.js';
+import { PrismaService } from '../src/prisma/prisma.service.js';
 
 export const PASSWORD = 'Str0ng!Passw0rd';
 

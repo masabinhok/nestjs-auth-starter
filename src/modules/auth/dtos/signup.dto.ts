@@ -1,7 +1,7 @@
 import { Transform } from 'class-transformer';
 import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
-import { IsStrongPassword } from 'src/common/validators/password.validator';
-import { normalizeEmail } from './login.dto';
+import { IsStrongPassword } from '../../../common/validators/password.validator.js';
+import { normalizeEmail } from './login.dto.js';
 
 export class SignupDto {
   @Transform(normalizeEmail)

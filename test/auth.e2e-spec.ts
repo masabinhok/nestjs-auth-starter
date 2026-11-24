@@ -8,7 +8,7 @@ import {
   createApp,
   resetDb,
   resetThrottle,
-} from './utils';
+} from './utils.js';
 
 describe('v1 auth flow (e2e)', () => {
   let app: INestApplication;

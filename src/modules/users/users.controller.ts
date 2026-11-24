@@ -8,13 +8,13 @@ import {
   Patch,
   Query,
 } from '@nestjs/common';
-import { UsersService } from './users.service';
-import { GetUser } from 'src/common/decorators/get-user.decorator';
-import { Roles } from 'src/common/decorators/roles.decorator';
-import { UserRole } from 'generated/prisma/enums';
-import { UpdateUserDto } from './dtos/update-user.dto';
-import { UpdateProfileDto } from './dtos/update-profile.dto';
-import { PaginationDto } from 'src/common/dtos/pagination.dto';
+import { UsersService } from './users.service.js';
+import { GetUser } from '../../common/decorators/get-user.decorator.js';
+import { Roles } from '../../common/decorators/roles.decorator.js';
+import { UserRole } from '../../generated/prisma/enums.js';
+import { UpdateUserDto } from './dtos/update-user.dto.js';
+import { UpdateProfileDto } from './dtos/update-profile.dto.js';
+import { PaginationDto } from '../../common/dtos/pagination.dto.js';
 
 @Controller('users')
 export class UsersController {

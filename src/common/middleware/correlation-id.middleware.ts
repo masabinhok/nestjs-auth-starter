@@ -10,7 +10,7 @@ export class CorrelationIdMiddleware implements NestMiddleware {
       (req.headers['x-correlation-id'] as string) || randomUUID();
 
     // Attach to request for later use
-    req['correlationId'] = correlationId;
+    req.correlationId = correlationId;
 
     // Set response header
     res.setHeader('X-Correlation-ID', correlationId);
