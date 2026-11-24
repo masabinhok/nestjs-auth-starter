@@ -6,8 +6,8 @@
 [`@nestjs/authentication`](https://docs.nestjs.com/security/authentication) and
 [`@nestjs/authorization`](https://docs.nestjs.com/security/authorization) packages.**
 
-[![CI](https://github.com/masabinhok/nestjs-jwt-rbac-boilerplate/actions/workflows/ci.yml/badge.svg)](https://github.com/masabinhok/nestjs-jwt-rbac-boilerplate/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/masabinhok/nestjs-jwt-rbac-boilerplate/actions/workflows/codeql.yml/badge.svg)](https://github.com/masabinhok/nestjs-jwt-rbac-boilerplate/actions/workflows/codeql.yml)
+[![CI](https://github.com/masabinhok/nestjs-auth-starter/actions/workflows/ci.yml/badge.svg)](https://github.com/masabinhok/nestjs-auth-starter/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/masabinhok/nestjs-auth-starter/actions/workflows/codeql.yml/badge.svg)](https://github.com/masabinhok/nestjs-auth-starter/actions/workflows/codeql.yml)
 [![NestJS 12](https://img.shields.io/badge/NestJS-12-e0234e?logo=nestjs)](https://nestjs.com)
 [![Node](https://img.shields.io/badge/node-%E2%89%A524.9-339933?logo=node.js&logoColor=white)](.nvmrc)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -39,7 +39,7 @@ your product on top.
 You need Docker. Then:
 
 ```bash
-git clone https://github.com/masabinhok/nestjs-jwt-rbac-boilerplate.git nestjs-auth
+git clone https://github.com/masabinhok/nestjs-auth-starter.git nestjs-auth
 cd nestjs-auth
 docker compose up -d                  # API, Postgres, Redis, Mailpit
 docker compose run --rm seed          # admin@example.com / admin-password-123

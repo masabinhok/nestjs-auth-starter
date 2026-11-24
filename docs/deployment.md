@@ -21,7 +21,7 @@ enabled auth features, and on any invalid setting.
 Releases publish a multi-arch image:
 
 ```bash
-docker run -p 8080:8080 --env-file .env ghcr.io/masabinhok/nestjs-jwt-rbac-boilerplate:latest
+docker run -p 8080:8080 --env-file .env ghcr.io/masabinhok/nestjs-auth-starter:2
 ```
 
 Or build it: `docker build --target runtime -t my-api .`. Run migrations

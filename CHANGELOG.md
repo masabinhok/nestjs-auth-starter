@@ -1,6 +1,6 @@
 # Changelog
 
-## [2.0.0](https://github.com/masabinhok/nestjs-jwt-rbac-boilerplate/compare/v1.1.0...v2.0.0) (2026-11-24)
+## [2.0.0](https://github.com/masabinhok/nestjs-auth-starter/compare/v1.1.0...v2.0.0) (2026-11-24)
 
 A rewrite on NestJS 12 and the official `@nestjs/authentication` and
 `@nestjs/authorization` packages. Users and passwords carry over; clients

@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Question or idea
-    url: https://github.com/masabinhok/nestjs-jwt-rbac-boilerplate/discussions
+    url: https://github.com/masabinhok/nestjs-auth-starter/discussions
     about: Ask in Discussions
   - name: Report a vulnerability
-    url: https://github.com/masabinhok/nestjs-jwt-rbac-boilerplate/security/advisories/new
+    url: https://github.com/masabinhok/nestjs-auth-starter/security/advisories/new
     about: Privately, through GitHub security advisories
