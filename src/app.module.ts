@@ -1,53 +1,48 @@
-import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
-import { AuthModule } from './modules/auth/auth.module.js';
+import { Module } from '@nestjs/common';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { AuthenticationModule } from '@nestjs/authentication';
+import { AuthorizationModule } from '@nestjs/authorization';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
-import { PrismaModule } from './prisma/prisma.module.js';
-import { UsersModule } from './modules/users/users.module.js';
-import { HealthModule } from './modules/health/health.module.js';
-import { AppConfigModule } from './config/config.module.js';
-import { loggerConfig } from './config/logger.config.js';
-import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware.js';
-import { RolesGuard } from './common/guards/roles.guard.js';
-import { AuthGuard } from './common/guards/auth.guard.js';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { loadEnv } from './config/env.js';
+import { ConfigModule } from './config/config.module.js';
+import { DatabaseModule } from './infra/database/database.module.js';
+import { MailModule } from './infra/mail/mail.module.js';
+import { loggerParams } from './infra/logging/logger.config.js';
+import { RedisThrottlerStorage } from './infra/throttling/redis-throttler.storage.js';
+import { ProblemDetailsFilter } from './common/filters/problem-details.filter.js';
+import { authenticationOptions } from './auth/auth.options.js';
+import { AuditModule } from './audit/audit.module.js';
+import { AuthModule } from './auth/auth.module.js';
+import { UsersModule } from './users/users.module.js';
+import { HealthModule } from './health/health.module.js';
+
+const env = loadEnv();
 
 @Module({
   imports: [
-    LoggerModule.forRoot(loggerConfig),
-    // Every named throttler applies to every route, so there is one global
-    // limit here; auth routes tighten it with @Throttle().
-    ThrottlerModule.forRoot([
-      {
-        name: 'default',
-        ttl: 60_000, // 1 minute
-        limit: 100,
-      },
-    ]),
-    AppConfigModule,
-    AuthModule,
+    ConfigModule,
+    LoggerModule.forRoot(loggerParams(env)),
+    DatabaseModule,
+    MailModule,
+    ThrottlerModule.forRoot({
+      // Each route can tighten this with @Throttle(); auth routes do.
+      throttlers: [{ name: 'default', ttl: 60_000, limit: 120 }],
+      storage: env.REDIS_URL
+        ? new RedisThrottlerStorage(env.REDIS_URL)
+        : undefined,
+    }),
+    // Order matters: authentication's guard runs before authorization's.
+    AuthenticationModule.forRoot(authenticationOptions(env)),
+    AuthorizationModule.forRoot(),
+    AuditModule,
+    AuthModule.forRoot(env),
     UsersModule,
     HealthModule,
-    PrismaModule,
   ],
-  controllers: [],
   providers: [
-    {
-      provide: APP_GUARD,
-      useClass: ThrottlerGuard,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: AuthGuard,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: RolesGuard,
-    },
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_FILTER, useClass: ProblemDetailsFilter },
   ],
 })
-export class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(CorrelationIdMiddleware).forRoutes('*');
-  }
-}
+export class AppModule {}

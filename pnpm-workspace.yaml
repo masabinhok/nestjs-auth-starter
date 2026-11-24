@@ -1,6 +1,6 @@
 allowBuilds:
   '@prisma/engines': true
-  bcrypt: true
+  '@scarf/scarf': false
   esbuild: true
   prisma: true
 overrides:

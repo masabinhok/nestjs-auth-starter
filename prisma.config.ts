@@ -16,5 +16,7 @@ export default defineConfig({
   datasource: {
     // Not needed for `prisma generate`, so a missing URL is not an error here.
     url: process.env.DATABASE_URL ?? '',
+    // Only used by `prisma migrate dev` / `migrate diff`.
+    shadowDatabaseUrl: process.env.SHADOW_DATABASE_URL,
   },
 });

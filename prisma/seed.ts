@@ -1,68 +1,63 @@
-import { PrismaClient, UserRole } from '../src/generated/prisma/client.js';
-import * as bcrypt from 'bcrypt';
+/**
+ * Development seed: an admin and a regular user with verified emails.
+ *
+ *   pnpm prisma:seed
+ *
+ * Refuses to run with NODE_ENV=production. Set SEED_ADMIN_PASSWORD to choose
+ * the admin password; otherwise a random one is generated and printed.
+ */
+import { randomBytes } from 'node:crypto';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { PasswordHasher } from '@nestjs/authentication';
+import { PrismaClient } from '../src/generated/prisma/client.js';
+
+if (process.env.NODE_ENV === 'production') {
+  console.error('Refusing to seed a production database.');
+  process.exit(1);
+}
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
 });
+const hasher = new PasswordHasher();
+
+async function upsertUser(
+  email: string,
+  fullName: string,
+  role: 'ADMIN' | 'USER',
+  password: string,
+) {
+  const passwordHash = await hasher.hash(password);
+  await prisma.user.upsert({
+    where: { email },
+    update: { passwordHash, role, isActive: true },
+    create: {
+      email,
+      fullName,
+      role,
+      passwordHash,
+      emailVerifiedAt: new Date(),
+    },
+  });
+}
 
 async function main() {
-  console.log('🌱 Seeding database...');
+  const adminEmail = process.env.SEED_ADMIN_EMAIL ?? 'admin@example.com';
+  const adminPassword =
+    process.env.SEED_ADMIN_PASSWORD ?? randomBytes(12).toString('base64url');
+  const userPassword = process.env.SEED_USER_PASSWORD ?? 'user-password-123';
 
-  // Use 12 rounds for bcrypt as per security standards
-  const adminPassword = await bcrypt.hash('Admin@123', 12);
-  const userPassword = await bcrypt.hash('User@123', 12);
+  await upsertUser(adminEmail, 'Admin', 'ADMIN', adminPassword);
+  await upsertUser('user@example.com', 'Demo User', 'USER', userPassword);
 
-  // Create admin user
-  const admin = await prisma.user.upsert({
-    where: { email: 'admin@example.com' },
-    update: {},
-    create: {
-      email: 'admin@example.com',
-      passwordHash: adminPassword,
-      fullName: 'Admin User',
-      role: UserRole.ADMIN,
-      isActive: true,
-    },
-  });
-
-  // Create regular user
-  const user = await prisma.user.upsert({
-    where: { email: 'user@example.com' },
-    update: {},
-    create: {
-      email: 'user@example.com',
-      passwordHash: userPassword,
-      fullName: 'Regular User',
-      role: UserRole.USER,
-      isActive: true,
-    },
-  });
-
-  console.log('✅ Seeding completed');
-  console.log('\n📋 Test Credentials:');
-  console.log('===================');
-  console.log('Admin User:');
-  console.log('  Email:', admin.email);
-  console.log('  Password: Admin@123');
-  console.log('  Role:', admin.role);
-  console.log('\nRegular User:');
-  console.log('  Email:', user.email);
-  console.log('  Password: User@123');
-  console.log('  Role:', user.role);
-  console.log('\n⚠️  Note: Passwords meet strong validation requirements:');
-  console.log('   - Minimum 8 characters');
-  console.log('   - At least one uppercase letter');
-  console.log('   - At least one lowercase letter');
-  console.log('   - At least one number');
-  console.log('   - At least one special character');
+  console.log('Seeded development users:');
+  console.log(`  admin  ${adminEmail} / ${adminPassword}`);
+  console.log(`  user   user@example.com / ${userPassword}`);
 }
 
 main()
-  .catch((e) => {
-    console.error('❌ Seeding failed:', e);
-    process.exit(1);
+  .catch((err) => {
+    console.error(err);
+    process.exitCode = 1;
   })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+  .finally(() => prisma.$disconnect());

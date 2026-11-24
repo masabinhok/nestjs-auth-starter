@@ -1,80 +1,65 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { type INestApplication, ValidationPipe } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { ConfigService } from '@nestjs/config';
-import cookieParser from 'cookie-parser';
-import helmet from 'helmet';
-import { Logger } from 'nestjs-pino';
-import { ResponseInterceptor } from './common/interceptors/response.interceptor.js';
-import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
+import { apiReference } from '@scalar/nestjs-api-reference';
+import type { NextFunction, Request, Response } from 'express';
+import type { Env } from './config/env.js';
+import { API_PREFIX } from './auth/auth.options.js';
+import { buildOpenApiDocument } from './openapi.js';
+
+/** The API reference page loads its bundle from a CDN; only /docs allows it. */
+const DOCS_CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+  "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com",
+  "font-src 'self' data: https://fonts.gstatic.com https://fonts.scalar.com",
+  "img-src 'self' data: https:",
+  "connect-src 'self'",
+].join('; ');
 
 /**
- * Applies global middleware, pipes, interceptors and filters.
- * Shared by `main.ts` and the e2e tests so both run the same stack.
+ * Everything around the routes: prefix, proxy trust, CORS, security headers,
+ * CSRF protection, validation and API docs. Shared by main.ts and the tests,
+ * so both run the same stack.
  */
-export function configureApp(app: INestApplication): void {
-  app.setGlobalPrefix('api/v1');
+export function configureApp(app: INestApplication, env: Env): void {
+  const express = app as NestExpressApplication;
+  app.setGlobalPrefix(API_PREFIX);
 
-  const configService = app.get(ConfigService);
-
-  // Needed behind a load balancer so req.ip (rate limiting, session info)
-  // is the client's address and not the proxy's.
-  const trustProxy = configService.get<string>('TRUST_PROXY');
-  if (trustProxy) {
-    (app as NestExpressApplication).set(
-      'trust proxy',
-      /^\d+$/.test(trustProxy) ? Number(trustProxy) : trustProxy,
-    );
+  if (env.TRUST_PROXY) {
+    const hops = Number(env.TRUST_PROXY);
+    express.set('trust proxy', Number.isInteger(hops) ? hops : env.TRUST_PROXY);
   }
 
-  const corsOrigins = (configService.get<string>('CORS_ORIGIN') ?? '')
-    .split(',')
-    .map((o) => o.trim())
-    .filter(Boolean);
+  app.enableCors({ origin: env.CORS_ORIGIN, credentials: true });
 
-  app.enableCors({
-    origin: corsOrigins,
-    credentials: true,
-  });
-
-  app.use(cookieParser());
-
-  app.use(
-    helmet({
-      contentSecurityPolicy: {
-        directives: {
-          defaultSrc: ["'self'"],
-          styleSrc: ["'self'", "'unsafe-inline'"],
-          scriptSrc: ["'self'"],
-          imgSrc: ["'self'", 'data:', 'https:'],
-        },
-      },
-      crossOriginEmbedderPolicy: true,
-      crossOriginOpenerPolicy: { policy: 'same-origin' },
-      crossOriginResourcePolicy: { policy: 'same-origin' },
-      dnsPrefetchControl: { allow: false },
-      frameguard: { action: 'deny' },
-      hidePoweredBy: true,
-      hsts: {
-        maxAge: 31536000,
-        includeSubDomains: true,
-        preload: true,
-      },
-      ieNoOpen: true,
-      noSniff: true,
-      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-      xssFilter: true,
-    }),
-  );
+  // Nest 12's built-ins: helmet's headers, and Fetch Metadata CSRF checks
+  // for every state-changing request from another origin.
+  app.useSecurityHeaders();
+  app.enableCsrfProtection({ trustedOrigins: env.CORS_ORIGIN });
 
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
+      errorFormat: 'grouped',
     }),
   );
 
-  const logger = app.get(Logger);
-  app.useGlobalInterceptors(new ResponseInterceptor());
-  app.useGlobalFilters(new HttpExceptionFilter(logger));
+  app.enableShutdownHooks();
+
+  if (env.API_DOCS) {
+    const document = buildOpenApiDocument(app);
+    express.use('/openapi.json', (_req: Request, res: Response) =>
+      res.json(document),
+    );
+    express.use(
+      '/docs',
+      (_req: Request, res: Response, next: NextFunction) => {
+        res.setHeader('Content-Security-Policy', DOCS_CSP);
+        next();
+      },
+      apiReference({ content: document, theme: 'default' }),
+    );
+  }
 }
