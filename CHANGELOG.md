@@ -1,5 +1,51 @@
 # Changelog
 
+## [2.0.0](https://github.com/masabinhok/nestjs-jwt-rbac-boilerplate/compare/v1.1.0...v2.0.0) (2026-11-24)
+
+A rewrite on NestJS 12 and the official `@nestjs/authentication` and
+`@nestjs/authorization` packages. Users and passwords carry over; clients
+need changes. See [docs/migration-v2.md](docs/migration-v2.md).
+
+### ⚠ Breaking changes
+
+- Browsers sign in with a server-side session cookie (`__Host-sid`) instead
+  of JWT cookies; `POST /auth/refresh` is gone. Token clients use
+  `POST /auth/token` and `POST /auth/token/refresh`.
+- Responses are no longer wrapped in `{success, data, meta}`. Errors are RFC
+  9457 problem details with an `errorCode`.
+- Sign-up answers `202` and sends a verification email.
+- `@Roles()` is replaced by `@nestjs/authorization` policies.
+- New and renamed environment variables (`AUTH_JWT_SECRET`, `APP_URL`,
+  `WEB_URL`, …).
+- Requires Node 24.9+ and pnpm; the code is ESM.
+
+### Features
+
+- Postgres storage for all six `@nestjs/authentication` storage contracts,
+  verified by the package's contract suite, concurrency cases included
+- Email verification, password reset and change
+- TOTP two-factor authentication with encrypted secrets and recovery codes
+- Passkeys (WebAuthn)
+- Magic links bound to the requesting browser
+- Google and GitHub sign-in with safe account linking
+- Personal API keys
+- Session list, per-device sign-out and sign out everywhere
+- Refresh token rotation with reuse detection
+- Per-account login lockout; Redis-backed rate limits across instances
+- Audit trail of authentication events
+- Admin user management with last-admin protection
+- OpenAPI with a Scalar reference at `/docs`; Bruno collection
+- Feature toggles; typed, validated configuration
+- Docker image, docker compose (Postgres, Redis, Mailpit), dev container
+- CI on Node 24 and 26, CodeQL, Renovate, release automation
+
+### Upgrading
+
+- v1 bcrypt password hashes keep working and are rehashed to scrypt at
+  each user's next sign-in.
+- The migration lowercases emails where that causes no conflict and discards
+  v1 refresh tokens.
+
 ## 1.1.0 (2026-11-24)
 
 Security release. Upgrading is strongly recommended.

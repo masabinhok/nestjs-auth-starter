@@ -1,7 +1,7 @@
 {
-  "name": "nestjs-jwt-rbac-boilerplate",
-  "version": "2.0.0-alpha.0",
-  "description": "Production-ready NestJS authentication system with JWT, refresh tokens, and RBAC",
+  "name": "nestjs-auth-starter",
+  "version": "2.0.0",
+  "description": "Production-ready authentication for NestJS 12 on the official @nestjs/authentication and @nestjs/authorization packages: sessions, tokens, 2FA, passkeys, magic links, OAuth, API keys, policies.",
   "author": "Sabin Shrestha <sabin.shrestha.er@gmail.com>",
   "private": true,
   "license": "MIT",
@@ -83,5 +83,22 @@
   "packageManager": "pnpm@12.23.0",
   "engines": {
     "node": ">=24.9"
+  },
+  "keywords": [
+    "nestjs",
+    "authentication",
+    "authorization",
+    "passkeys",
+    "webauthn",
+    "2fa",
+    "totp",
+    "oauth",
+    "prisma",
+    "boilerplate",
+    "starter"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/masabinhok/nestjs-jwt-rbac-boilerplate.git"
   }
 }
